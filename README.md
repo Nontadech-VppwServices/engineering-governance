@@ -79,6 +79,33 @@ Business-context onboarding rule:
 - `docs/business/` stores stable domain knowledge, terminology, rules, actors and flows.
 - AI-created scaffolds remain `pending_human_review`; AI must not invent business rules.
 
+## Organization default project archetypes
+
+Accepted architecture decision:
+
+- `decisions/adr/global/ADR-GLOBAL-001-default-project-archetypes.md`
+
+Defaults for new projects:
+
+- AWS website/application → **Next.js + TypeScript** using `templates/archetypes/aws-nextjs-typescript.yaml`
+- on-premise RPA → **Playwright + TypeScript** using `templates/archetypes/onprem-playwright-typescript-rpa.yaml`
+
+A project that needs a different primary stack must use an accepted ADR to document the exception. AI/New Project automation must not silently deviate from the applicable default archetype.
+
+## Central RPA reporting standard
+
+Accepted architecture decision:
+
+- `decisions/adr/global/ADR-GLOBAL-002-central-rpa-reporting.md`
+
+Supporting governance:
+
+- `policies/rpa-reporting.md`
+- `schemas/rpa-run-event.schema.json`
+- `templates/rpa-report-summary.md`
+
+RPA bots emit normalized run events to a central reporting service. The central service stores history, creates daily/weekly/monthly summaries in `Asia/Bangkok`, and delivers reports through the **LINE Messaging API / LINE Official Account**. Bots must not own LINE credentials or independent scheduled-report logic.
+
 ## Planned evolution
 
 ```text
@@ -101,10 +128,21 @@ Phase 5    Module / New Project automation
 Phase 6    Hermes Skills / Memory / continuous improvement
 ```
 
+Parallel implementation workstream:
+
+```text
+RPA Reporting Service
+   ├── event ingestion API
+   ├── durable reporting store
+   ├── daily/weekly/monthly aggregator
+   ├── LINE Messaging adapter
+   └── dashboard/evidence links (future)
+```
+
 ## Governance rule
 
 When documentation, AI memory, cached data, and authoritative systems disagree, follow `ssot/precedence.yaml` and report the conflict instead of silently guessing which value is correct.
 
 ## Next step
 
-Build Phase 3 — Effective Context Resolver. It should resolve project registry data, organization policies, applicable ADR/BDR records, project-local `.ai` metadata, `docs/business/` context, live Jira issue context, repository truth pointers, compliance gaps and unresolved/conflict flags into one effective project context for AI agents.
+Build Phase 3 — Effective Context Resolver. It should resolve project registry data, organization policies, applicable ADR/BDR records, project-local `.ai` metadata, `docs/business/` context, live Jira issue context, repository truth pointers, compliance gaps, project archetype, reporting requirements, and unresolved/conflict flags into one effective project context for AI agents.
