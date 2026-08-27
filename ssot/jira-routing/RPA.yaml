@@ -1,0 +1,73 @@
+schema_version: 1
+
+jira:
+  project_key: RPA
+  project_name: RPA
+  routing_mode: required_component
+  component_field_required: true
+
+components:
+  D365_SALES_ORDER:
+    label: D365 Sales Order
+    description: Create/process Sales Order flows in Dynamics 365.
+    repository: VespiarioThailand/RPA-D365
+    repository_role: primary
+    status: active
+
+  D365_CREDIT_NOTE:
+    label: D365 Credit Note
+    description: Create/process Credit Note flows in Dynamics 365.
+    repository: VespiarioThailand/RPA-D365
+    repository_role: primary
+    status: active
+
+  AP_PO_INVOICE:
+    label: AP PO Invoice
+    description: Accounts Payable PO Invoice automation.
+    repository: VespiarioThailand/rpa-ap-po-invoice
+    repository_role: primary
+    status: active
+
+  D365_RETAIL_ECOMMERCE_EXPORT:
+    label: D365 Retail / Ecommerce Export
+    description: Retail and ecommerce report export automation from D365.
+    repository: VespiarioThailand/rpa-d365-retail-ecommerce-export
+    repository_role: primary
+    status: active
+
+  D365_INVOICE_EXPORT:
+    label: D365 Invoice Export
+    description: Invoice export automation from D365 and related output integration.
+    repository: VespiarioThailand/rpa-d365-invoice-export
+    repository_role: primary
+    status: active
+
+  PDF_SIGNER:
+    label: PDF Signer
+    description: PDF signing, merging, and document automation.
+    repository: VespiarioThailand/PDFSigner
+    repository_role: primary
+    status: active
+
+  SHAREPOINT_EXCEL_EXTRACTOR:
+    label: SharePoint Excel Extractor
+    description: Excel extraction automation using OneDrive/SharePoint and Microsoft Graph.
+    repository: VespiarioThailand/RPA
+    repository_role: primary
+    status: active
+
+rules:
+  validate_issue_against_component: true
+  conflict_status: routing_conflict
+  unknown_component_status: unmapped_component
+  allow_silent_repository_switch: false
+  allow_multi_repo_after_analysis: true
+
+jira_dropdown_values:
+  - D365_SALES_ORDER
+  - D365_CREDIT_NOTE
+  - AP_PO_INVOICE
+  - D365_RETAIL_ECOMMERCE_EXPORT
+  - D365_INVOICE_EXPORT
+  - PDF_SIGNER
+  - SHAREPOINT_EXCEL_EXTRACTOR
