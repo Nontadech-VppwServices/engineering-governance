@@ -25,86 +25,77 @@ It is designed to become the governance foundation for an AI-assisted SDLC acros
 
 ### Phase 0 — Complete
 
-Governance foundations:
-
-- `ssot/authority-map.yaml` — authoritative-source map.
-- `ssot/precedence.yaml` — conflict/precedence rules.
+- `ssot/authority-map.yaml`
+- `ssot/precedence.yaml`
 
 ### Phase 1 — Complete
 
-Governance standards:
-
-- `ssot/projects/` — central project registry.
-- `templates/PROJECT.yaml` — project registry template.
-- `templates/ADR.md` — Architecture Decision Record template.
-- `templates/BDR.md` — Business Decision Record template.
-- `decisions/adr/global/` — organization-wide ADRs.
-- `decisions/adr/domain/` — domain-level ADRs.
-- `decisions/bdr/global/` — organization-wide BDRs.
-- `decisions/bdr/domain/` — domain-level BDRs.
-- `policies/decision-resolution.md` — decision hierarchy, superseding, exceptions, and drift rules.
-- `policies/ai-sdlc.md` — AI permissions and human approval boundaries.
-- `policies/git.md` — AI-assisted Git workflow rules.
-- `policies/deployment.md` — CI/CD and production deployment rules.
-- `policies/project-standard.md` — minimum requirements for onboarding projects.
-- `schemas/project.schema.json` — project registry metadata schema.
-- `schemas/adr.schema.json` — ADR metadata schema.
-- `schemas/bdr.schema.json` — BDR metadata schema.
+Project registry, ADR/BDR templates and schemas, Git/deployment/security/AI governance policies.
 
 ### Phase 2 — Complete
 
-Pilot project: `PIM` — Product Information Management
+Pilot: `PIM` / `VespiarioThailand/product-information` with verified Git, Jira, runtime, database, AWS ECS/Fargate and CI/CD context.
 
-Central artifacts:
+### Phase 2.1 — Organization Project Inventory — Complete
 
-- Registry: `ssot/projects/PIM.yaml`
-- Inventory: `onboarding/PIM/inventory.md`
+Organization inventory:
 
-Project-local artifacts in `VespiarioThailand/product-information`:
+- `inventory/organization-projects.yaml`
+- one registry record per governed project under `ssot/projects/`
 
-- `.ai/project.yaml`
-- `docs/ai-governance/onboarding-inventory.md`
-- `docs/adr/README.md`
-- `docs/bdr/README.md`
+Registered AWS projects:
 
-Verified during onboarding:
+- `WEBSITE_CUSTOMER_FRONTEND`
+- `VESPISTIID_BACKEND`
+- `VESPISTIID_PLATFORM`
+- `WEBSITE_CMS`
+- `ECOMMERCE_CUSTOMER_FRONTEND`
+- `ECOMMERCE_CMS`
+- `TMS_BACKEND`
+- existing pilot `PIM`
 
-- Jira project key `PIM` and Product Information Management project identity.
-- Git repository `VespiarioThailand/product-information` and default branch `main`.
-- TypeScript / Next.js / Node.js container runtime.
-- Prisma + PostgreSQL database contract.
-- Docker multi-stage application build.
-- GitHub Actions CI/CD.
-- UAT: branch `uat` -> quality/security gates -> ECR -> ECS.
-- Production: `prod-*` tag -> quality/security gates -> ECR -> ECS.
-- AWS ECS/Fargate deployment architecture in `ap-southeast-7`.
-- AWS Secrets Manager as runtime secret source.
-- Security audit, worker tests, build, and Playwright E2E quality gates.
+Registered on-premise / automation projects:
 
-Explicitly unresolved rather than guessed:
+- `RPA_D365`
+- `RPA`
+- `RPA_AP_PO_INVOICE`
+- `PDF_SIGNER`
+- `RPA_D365_RETAIL_ECOMMERCE_EXPORT`
+- `RPA_D365_INVOICE_EXPORT`
 
-- technical owner
-- business owner
-- DEV deployment mapping
+Organization-wide quality policy:
 
-No implementation fact was automatically promoted to an Accepted ADR. Architecture candidates require human review before they become authoritative decisions.
+- `policies/testing.md`
+- AWS applications require automated **API + E2E tests** as mandatory production gates.
+- Missing mandatory gates are governance gaps and must not be silently skipped by AI.
+
+Business-context policy:
+
+- `policies/business-context.md`
+- Jira remains authoritative for live work items and workflow state.
+- Repositories should maintain stable business/domain context under `docs/business/`.
+- Jira-derived Markdown snapshots may be generated for AI context but are non-authoritative and must include source/sync metadata.
 
 ## Planned evolution
 
 ```text
-Phase 0  Governance foundation                         COMPLETE
+Phase 0    Governance foundation                       COMPLETE
    ↓
-Phase 1  Project registry + ADR/BDR standards         COMPLETE
+Phase 1    Registry + ADR/BDR standards               COMPLETE
    ↓
-Phase 2  PIM pilot onboarding                         COMPLETE
+Phase 2    PIM pilot onboarding                       COMPLETE
    ↓
-Phase 3  Effective Context Resolver
+Phase 2.1  Organization project inventory             COMPLETE
    ↓
-Phase 4  Jira → AI → Git → PR workflow
+Phase 2.2  Compliance + business-context onboarding
    ↓
-Phase 5  Module / New Project automation
+Phase 3    Effective Context Resolver
    ↓
-Phase 6  Hermes Skills / Memory / continuous improvement
+Phase 4    Jira → AI → Git → PR workflow
+   ↓
+Phase 5    Module / New Project automation
+   ↓
+Phase 6    Hermes Skills / Memory / continuous improvement
 ```
 
 ## Governance rule
@@ -113,4 +104,12 @@ When documentation, AI memory, cached data, and authoritative systems disagree, 
 
 ## Next step
 
-Build Phase 3 Effective Context Resolver using `PIM` as the first project. The resolver should combine the central registry, applicable policies and decisions, project-local `.ai/project.yaml`, repository truth pointers, approved exceptions, and unresolved/conflict flags into one effective context response.
+Run Phase 2.2 against the registered projects:
+
+1. verify API/E2E compliance for every AWS project;
+2. identify actual AWS deployment platform/workflows and branch/environment mapping;
+3. verify on-premise deployment mechanism and automation test gates;
+4. map Jira projects where available;
+5. onboard stable `docs/business/` context without duplicating live Jira state.
+
+After those gaps are measured, build Phase 3 Effective Context Resolver against the organization inventory.
