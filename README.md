@@ -4,9 +4,7 @@ Central governance repository for engineering standards, source-of-truth definit
 
 ## Purpose
 
-This repository defines **where authoritative information lives** and the precedence rules used when multiple sources disagree.
-
-It is designed to become the governance foundation for an AI-assisted SDLC across multiple projects.
+This repository defines **where authoritative information lives** and the precedence rules used when multiple sources disagree. It is the governance foundation for an AI-assisted SDLC across multiple projects.
 
 ## Core principles
 
@@ -25,6 +23,8 @@ It is designed to become the governance foundation for an AI-assisted SDLC acros
 
 ### Phase 0 — Complete
 
+Governance authority and conflict-resolution foundation:
+
 - `ssot/authority-map.yaml`
 - `ssot/precedence.yaml`
 
@@ -38,43 +38,46 @@ Pilot: `PIM` / `VespiarioThailand/product-information` with verified Git, Jira, 
 
 ### Phase 2.1 — Organization Project Inventory — Complete
 
-Organization inventory:
-
 - `inventory/organization-projects.yaml`
 - one registry record per governed project under `ssot/projects/`
+- AWS and on-prem/RPA deployment classes registered
+- organization-wide `policies/testing.md`
+- organization-wide `policies/business-context.md`
 
-Registered AWS projects:
+### Phase 2.2 — Compliance + Business-Context Onboarding — Complete
 
-- `WEBSITE_CUSTOMER_FRONTEND`
-- `VESPISTIID_BACKEND`
-- `VESPISTIID_PLATFORM`
-- `WEBSITE_CMS`
-- `ECOMMERCE_CUSTOMER_FRONTEND`
-- `ECOMMERCE_CMS`
-- `TMS_BACKEND`
-- existing pilot `PIM`
+Audit evidence:
 
-Registered on-premise / automation projects:
+- `compliance/phase-2.2.md`
+- reusable project business-context template: `templates/business-context/README.md`
+- project-local `docs/business/README.md` scaffolds created across all registered application/automation repositories
 
-- `RPA_D365`
-- `RPA`
-- `RPA_AP_PO_INVOICE`
-- `PDF_SIGNER`
-- `RPA_D365_RETAIL_ECOMMERCE_EXPORT`
-- `RPA_D365_INVOICE_EXPORT`
+AWS minimum testing result:
 
-Organization-wide quality policy:
+- compliant: `PIM`, `VESPISTIID_PLATFORM`
+- non-compliant / remediation required: `WEBSITE_CUSTOMER_FRONTEND`, `VESPISTIID_BACKEND`, `WEBSITE_CMS`, `ECOMMERCE_CUSTOMER_FRONTEND`, `ECOMMERCE_CMS`, `TMS_BACKEND`
 
-- `policies/testing.md`
-- AWS applications require automated **API + E2E tests** as mandatory production gates.
-- Missing mandatory gates are governance gaps and must not be silently skipped by AI.
+On-prem/RPA result:
 
-Business-context policy:
+- existing automated tests but controlled production gate still unresolved: `RPA_D365`, `RPA_D365_RETAIL_ECOMMERCE_EXPORT`, `RPA_D365_INVOICE_EXPORT`
+- automated test/gate gaps: `RPA`, `RPA_AP_PO_INVOICE`, `PDF_SIGNER`
 
-- `policies/business-context.md`
-- Jira remains authoritative for live work items and workflow state.
-- Repositories should maintain stable business/domain context under `docs/business/`.
-- Jira-derived Markdown snapshots may be generated for AI context but are non-authoritative and must include source/sync metadata.
+Verified Jira mappings:
+
+- `PIM` → Jira `PIM` — Product Information Management
+- `TMS_BACKEND` → Jira `TMS` — Transport Management System
+
+A Jira project `RPA` exists, but individual RPA repositories remain unmapped until repository/issue-level evidence confirms each relationship.
+
+Important configuration drift discovered:
+
+- `TMS_BACKEND` production workflow references Product Information deployment resource names and PIM environment URL; the registry records this as high-severity deployment configuration drift pending verification/correction.
+
+Business-context onboarding rule:
+
+- Jira remains authoritative for live ticket status, assignee, priority, sprint and current acceptance progress.
+- `docs/business/` stores stable domain knowledge, terminology, rules, actors and flows.
+- AI-created scaffolds remain `pending_human_review`; AI must not invent business rules.
 
 ## Planned evolution
 
@@ -87,7 +90,7 @@ Phase 2    PIM pilot onboarding                       COMPLETE
    ↓
 Phase 2.1  Organization project inventory             COMPLETE
    ↓
-Phase 2.2  Compliance + business-context onboarding
+Phase 2.2  Compliance + business-context onboarding   COMPLETE
    ↓
 Phase 3    Effective Context Resolver
    ↓
@@ -104,12 +107,4 @@ When documentation, AI memory, cached data, and authoritative systems disagree, 
 
 ## Next step
 
-Run Phase 2.2 against the registered projects:
-
-1. verify API/E2E compliance for every AWS project;
-2. identify actual AWS deployment platform/workflows and branch/environment mapping;
-3. verify on-premise deployment mechanism and automation test gates;
-4. map Jira projects where available;
-5. onboard stable `docs/business/` context without duplicating live Jira state.
-
-After those gaps are measured, build Phase 3 Effective Context Resolver against the organization inventory.
+Build Phase 3 — Effective Context Resolver. It should resolve project registry data, organization policies, applicable ADR/BDR records, project-local `.ai` metadata, `docs/business/` context, live Jira issue context, repository truth pointers, compliance gaps and unresolved/conflict flags into one effective project context for AI agents.
