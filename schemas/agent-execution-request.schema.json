@@ -4,12 +4,17 @@
   "title": "Agent Execution Request",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "job_id", "jira_issue_key", "work_type", "repository", "base_branch", "working_branch", "effective_context"],
+  "required": ["schema_version", "job_id", "jira_issue_key", "work_type", "repository", "base_branch", "working_branch", "effective_context", "constraints"],
   "properties": {
     "schema_version": { "const": 1 },
     "job_id": { "type": "string", "minLength": 1 },
     "jira_issue_key": { "type": "string" },
     "work_type": { "enum": ["bug", "new_module", "analysis"] },
+    "execution_phase": {
+      "enum": ["analyze", "plan", "implement"],
+      "description": "Hermes execution phase. Omission is accepted for backward compatibility and is interpreted as implement by the trusted runner."
+    },
+    "objective": { "type": ["string", "null"], "maxLength": 8000 },
     "repository": { "type": "string" },
     "base_branch": { "type": "string" },
     "working_branch": { "type": "string" },
@@ -17,6 +22,7 @@
     "constraints": {
       "type": "object",
       "additionalProperties": false,
+      "required": ["allow_merge", "allow_production_deploy", "allow_production_credentials"],
       "properties": {
         "allow_merge": { "const": false },
         "allow_production_deploy": { "const": false },
