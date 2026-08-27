@@ -1,0 +1,21 @@
+schema_version: 1
+jira_project: TMS
+verified_at: 2026-08-27
+
+status_names_by_canonical_state:
+  ANALYZING: In Progress
+  CODING: In Progress
+  TESTING: QA
+  WAITING_REVIEW: QA
+
+verified_statuses:
+  - To Do
+  - In Progress
+  - QA
+
+unmapped_canonical_states:
+  - DONE
+
+notes:
+  - No completed TMS issue/status was available in the inspected data, so DONE remains intentionally unmapped.
+  - Runtime resolves transition IDs dynamically from the current issue state.
