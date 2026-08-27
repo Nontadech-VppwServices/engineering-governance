@@ -2,13 +2,15 @@
 
 ## Scope
 
-Controls Jira → AI → Git branch/code/test → pull request → Jira synchronization.
+Controls Jira → governed AI execution → Git branch/test → pull request → Jira synchronization.
+
+ADR-GLOBAL-008 refines the execution boundary: the Phase 4 service is the deterministic **Control Plane**, while Hermes is the default **AI Execution Plane** behind the trusted Agent Runner.
 
 ## Intake
 
 An intake event must have a stable event ID and Jira issue key. Duplicate events must be deduplicated before starting another execution for the same logical event.
 
-The orchestrator must load live Jira issue context and Effective Context before code modification.
+The orchestrator must load live Jira issue context and Effective Context before invoking material AI execution.
 
 Native Jira webhook intake should trigger an AI SDLC job only when:
 
@@ -23,7 +25,8 @@ Jira project allow-lists and AI SDLC assignee account IDs are runtime configurat
 
 - Jira project `RPA`: Component routing from `ssot/jira-routing/RPA.yaml` is mandatory.
 - Multi-repository application projects: repository discovery is evidence-driven through the Effective Context Resolver.
-- Unresolved routing, `routing_conflict`, `unmapped_component`, `unresolved_authority`, or blocking policy violation stops code modification.
+- Unresolved routing, `routing_conflict`, `unmapped_component`, `unresolved_authority`, or blocking policy violation stops AI execution that could lead to code modification.
+- Hermes may report evidence that routing appears incorrect, but must not silently switch repository scope.
 
 For application projects, Jira users do not need to identify frontend/backend repositories. One issue may route to more than one repository.
 
@@ -38,20 +41,32 @@ Required state history fields:
 - actor/type;
 - reason when applicable.
 
-Queue state is delivery state only and is never the authoritative AI SDLC job state.
+Queue state is delivery state only and is never the authoritative AI SDLC job state. Hermes session state or memory is also never the authoritative job state.
 
 ## Work execution
 
-The agent receives a versioned execution contract containing Jira context, Effective Context, repository, target branch and work type.
+The trusted Agent Runner receives a versioned execution contract containing Jira objective, Effective Context, repository, branch scope, work type, execution phase and hard constraints.
 
-The agent must not receive production credentials through the execution contract.
+Supported Hermes execution phases:
+
+- `analyze`: read-only repository investigation and evidence-backed findings;
+- `plan`: read-only implementation/test planning;
+- `implement`: controlled file modification inside the assigned isolated workspace.
+
+For `analyze` and `plan`, the trusted runner must independently verify that no repository file changed. Any modification blocks the phase.
+
+For `implement`, Hermes may edit workspace files but must not receive Git write credentials and must not commit, push, merge or deploy. The trusted runner independently observes changed files, executes required quality gates, verifies ancestry, then performs commit/push only after checks pass.
+
+Hermes run output and memory are non-authoritative artifacts. They cannot grant approval, alter routing, override Effective Context or bypass a control-plane decision.
 
 Work-type behavior:
 
-- Bug: may proceed through analysis, coding, tests and PR when Effective Context permits it.
-- New Module: must stop at `WAITING_PLAN_APPROVAL` before coding.
-- Analysis: must not create code changes or PRs.
-- New Project: belongs to Phase 5 and is not executed by the Phase 4 orchestrator.
+- Bug: Effective Context → Hermes Analyze → Hermes Implement → trusted tests/Git → PR.
+- New Module: Effective Context → Hermes Analyze → Hermes Plan → `WAITING_PLAN_APPROVAL` → Hermes Implement only after human approval.
+- Analysis: Hermes Analyze → artifact → DONE without code changes or PR.
+- New Project: belongs to Phase 5 and is not executed as a Phase 4 code-modification job.
+
+The execution plane must not receive production credentials through the contract, prompt, workspace or memory.
 
 ## Branch naming
 
@@ -65,7 +80,7 @@ Branch names must be deterministic, safe for Git refs, and traceable to Jira.
 
 ## Quality gates
 
-Required quality gates come from Effective Context and organization policy.
+Required quality gates come from Effective Context and organization policy and are independently evaluated by the trusted execution boundary rather than accepted solely from model claims.
 
 AWS website/application minimum:
 
@@ -80,7 +95,7 @@ RPA minimum is automation appropriate and may include:
 - idempotency/retry checks where state-changing automation is involved;
 - Docker/build verification where applicable.
 
-A required failed/missing gate blocks pull-request creation unless an accepted exception explicitly allows otherwise.
+A required failed/missing gate blocks pull-request creation unless an accepted exception explicitly allows otherwise. Hermes cannot weaken, skip or reinterpret a required gate as passed.
 
 ## Pull requests
 
@@ -92,7 +107,8 @@ Each PR must include:
 - AI SDLC job ID;
 - work summary;
 - tests executed and result;
-- governance/conflict notes where relevant.
+- governance/conflict notes where relevant;
+- Hermes run reference when available.
 
 AI does not merge PRs.
 
@@ -114,6 +130,7 @@ Verified/partial Jira project mappings are registered in `ssot/jira-workflows/ph
 At minimum Jira should receive comments/events for:
 
 - routing resolved;
+- Hermes analysis/planning progress where relevant;
 - blocked/waiting information;
 - PR created;
 - tests failed;
@@ -127,9 +144,9 @@ A closed-unmerged PR does not complete the job.
 
 ## Production
 
-Production deployment remains CI/CD responsibility after human/policy-controlled merge. The Phase 4 orchestrator cannot directly deploy production.
+Production deployment remains CI/CD responsibility after human/policy-controlled merge. The Phase 4 orchestrator, Hermes Execution Plane and Agent Runner cannot directly deploy production.
 
-Production credentials must not be persisted in job records, Jira comments, Effective Context payloads, or Agent execution requests.
+Production credentials must not be persisted in job records, Jira comments, Effective Context payloads, Agent execution requests, Hermes prompts, workspace files or Hermes memory.
 
 ## Idempotency
 
@@ -137,7 +154,15 @@ The following operations must be idempotent or safely retryable:
 
 - intake enqueue;
 - state transition persistence;
+- Hermes execution dispatch/reference tracking;
 - branch ensure/create;
 - Jira status/comment synchronization;
 - PR lookup/create;
 - PR-merge completion callback.
+
+## References
+
+- `decisions/adr/global/ADR-GLOBAL-005-phase4-ai-sdlc-orchestration.md`
+- `decisions/adr/global/ADR-GLOBAL-008-hermes-execution-plane.md`
+- `policies/hermes-execution-plane.md`
+- `hermes/skills/ai-sdlc-execution/SKILL.md`
