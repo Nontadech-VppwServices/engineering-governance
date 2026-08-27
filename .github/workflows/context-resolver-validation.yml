@@ -1,0 +1,50 @@
+name: Context Resolver Validation
+
+on:
+  pull_request:
+    paths:
+      - 'reference/context-resolver/**'
+      - 'schemas/context-resolve-request.schema.json'
+      - 'schemas/effective-context.schema.json'
+      - 'api/context-resolver.openapi.yaml'
+      - 'policies/context-resolution.md'
+      - 'decisions/adr/global/ADR-GLOBAL-004-effective-context-resolver.md'
+  push:
+    branches: [main]
+    paths:
+      - 'reference/context-resolver/**'
+      - 'schemas/context-resolve-request.schema.json'
+      - 'schemas/effective-context.schema.json'
+      - 'api/context-resolver.openapi.yaml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate JSON documents
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('schemas/context-resolve-request.schema.json','utf8'))"
+          node -e "JSON.parse(require('fs').readFileSync('schemas/effective-context.schema.json','utf8'))"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: reference/context-resolver/package-lock.json
+
+      - name: Install reference resolver dependencies
+        working-directory: reference/context-resolver
+        run: npm install --package-lock-only && npm ci
+
+      - name: Typecheck
+        working-directory: reference/context-resolver
+        run: npm run typecheck
+
+      - name: Tests
+        working-directory: reference/context-resolver
+        run: npm test
