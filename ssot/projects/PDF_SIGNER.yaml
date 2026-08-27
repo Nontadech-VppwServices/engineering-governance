@@ -1,0 +1,44 @@
+schema_version: 1
+project:
+  id: PDF_SIGNER
+  name: PDF Signer
+  status: active
+  domain: document-automation
+  type: document_automation
+ownership:
+  team: engineering
+  technical_owner: null
+  business_owner: null
+  status: unverified
+jira:
+  status: unmapped
+  project_key: null
+repository:
+  provider: github
+  organization: VespiarioThailand
+  name: PDFSigner
+  default_branch: main
+runtime:
+  family: python
+  language: python
+  integrations:
+    - microsoft_graph
+deployment:
+  type: on_prem
+  status: verified
+  verification_source: owner_confirmation
+  platform: server
+  packaging: docker_compose
+testing:
+  policy: policies/testing.md
+  profile: automation
+  workflow_test_required: true
+  compliance_status: unverified
+business_context:
+  policy: policies/business-context.md
+  repository_location: docs/business/
+  status: not_onboarded
+ai:
+  allow: {read: true, create_branch: true, commit: true, create_pr: true}
+  deny: {merge: true, production_deploy: true, production_credentials: true}
+unresolved: [technical_owner, business_owner, jira_mapping, on_prem_deployment_mechanism, test_gate_compliance]
