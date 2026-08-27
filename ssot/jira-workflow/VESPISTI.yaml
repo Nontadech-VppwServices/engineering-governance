@@ -1,0 +1,21 @@
+schema_version: 1
+jira_project: VESPISTI
+verified_at: 2026-08-27
+
+status_names_by_canonical_state:
+  ANALYZING: In Progress
+  CODING: In Progress
+  DONE: Done
+
+verified_statuses:
+  - To Do
+  - In Progress
+  - Done
+
+unmapped_canonical_states:
+  - TESTING
+  - WAITING_REVIEW
+
+notes:
+  - Review/QA status names were not verified from current issue data, so they remain intentionally unmapped.
+  - Runtime resolves transition IDs dynamically from the current issue state.
