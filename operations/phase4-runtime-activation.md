@@ -4,9 +4,9 @@ Phase 4 implementation can be complete before the production AI SDLC runtime is 
 
 ## Status model
 
-- **Implementation COMPLETE**: governance, contracts, reference orchestration, adapters and CI tests are complete.
-- **Runtime NOT ACTIVE**: the orchestrator is not yet deployed/configured against live Jira/GitHub/Agent infrastructure.
-- **Runtime ACTIVE**: all required infrastructure, credentials, webhooks and smoke tests below have been approved and verified.
+- **Implementation COMPLETE**: governance, contracts, reference orchestration, Hermes Execution Plane alignment, MCP capability boundary, adapters and CI tests are complete.
+- **Runtime NOT ACTIVE**: the orchestrator/Hermes/MCP runtime is not yet deployed/configured against live Jira/GitHub infrastructure.
+- **Runtime ACTIVE**: all required infrastructure, credentials, webhooks, Hermes/MCP controls and smoke tests below have been approved and verified.
 
 Do not describe Phase 4 as production-operational until Runtime ACTIVE criteria are met.
 
@@ -17,8 +17,11 @@ Do not describe Phase 4 as production-operational until Runtime ACTIVE criteria 
 - [ ] Provision PostgreSQL for durable AI SDLC job state.
 - [ ] Apply `reference/ai-sdlc-orchestrator/sql/001_ai_sdlc_jobs.sql`.
 - [ ] Deploy the Phase 4 orchestrator/worker with controlled network access.
+- [ ] Deploy/configure the Trusted Agent Runner.
+- [ ] Deploy/configure the Hermes Coder/Execution Plane profile.
+- [ ] Deploy or runner-manage the AI SDLC MCP server from `reference/ai-sdlc-mcp/`.
 - [ ] Configure centralized application logs and retention.
-- [ ] Configure health/availability monitoring for orchestrator, worker, Redis, PostgreSQL and Context Resolver.
+- [ ] Configure health/availability monitoring for orchestrator, worker, Redis, PostgreSQL, Context Resolver, Agent Runner, Hermes and MCP boundary.
 
 ## Jira
 
@@ -36,21 +39,47 @@ Do not describe Phase 4 as production-operational until Runtime ACTIVE criteria 
 ## GitHub
 
 - [ ] Use a company GitHub App / installation token rather than a personal token.
-- [ ] Grant only repository permissions required for branch creation, contents updates and PR creation.
-- [ ] Do not grant production deployment credentials to the Agent Runner.
+- [ ] Grant only repository permissions required for controlled branch/contents/PR operations.
+- [ ] Keep the GitHub provider credential behind the Trusted Agent Runner / MCP adapter boundary; do not expose it to Hermes prompts, skills or workspaces.
+- [ ] Do not grant production deployment credentials to Hermes, the Agent Runner or the MCP engineering surface.
 - [ ] Configure GitHub `pull_request` webhook delivery to `POST /webhooks/github`.
 - [ ] Configure and verify `X-Hub-Signature-256` webhook signing secret.
 - [ ] Verify protected production branches/environments still require human/policy-controlled merge/deployment.
 
+## Hermes Execution Plane
+
+- [ ] Use the governed `ai-sdlc-execution` skill.
+- [ ] Configure Hermes native MCP support for the AI SDLC MCP server.
+- [ ] Restrict Hermes MCP tool discovery to names in `ssot/mcp/ai-sdlc-tools.yaml`.
+- [ ] Ensure Hermes has no Jira/GitHub provider credential and no production credential.
+- [ ] Verify Analyze and Plan remain read-only.
+- [ ] Verify Implement can change only the assigned workspace/repository.
+- [ ] Verify Hermes cannot bypass an MCP deny result by changing repository/job/branch scope.
+
+## AI SDLC MCP boundary
+
+- [ ] Bind each Hermes engineering execution to one immutable MCP execution scope defined by `schemas/ai-sdlc-mcp-scope.schema.json`.
+- [ ] Prove one execution cannot access another job's Jira issue, repositories or working branches.
+- [ ] Verify `search_repository` / `read_repository_file` reject repositories outside Effective Context routing.
+- [ ] Verify repository path traversal is rejected.
+- [ ] Verify `run_quality_gate` accepts only named governed gate keys, never arbitrary shell commands.
+- [ ] Verify Git write requests are denied during Analyze/Plan.
+- [ ] Verify commit/push/PR requests use only the pre-approved working branch.
+- [ ] Verify trusted quality verdict is required before commit/push/PR action.
+- [ ] Verify `create_pull_request` also requires Control Plane `can_create_pr=true`.
+- [ ] Verify Jira comment tool can target only the scoped Jira issue and rejects secret-like content.
+- [ ] Verify the MCP server exposes no merge, production deploy, production secret, arbitrary control-plane shell, routing mutation, ADR/BDR acceptance or human-approval tools.
+- [ ] Record/audit tool name, scope, allow/deny decision and sanitized evidence reference.
+
 ## Agent Runner
 
-- [ ] Choose the initial Agent Runner implementation/provider.
 - [ ] Expose the versioned `AgentExecutionRequest` / `AgentExecutionResult` contract.
 - [ ] Run each job in an isolated controlled workspace.
 - [ ] Prevent access to production credentials.
 - [ ] Allow only repositories returned by Effective Context.
-- [ ] Ensure commits are pushed only to the AI-owned working branch.
-- [ ] Return complete quality-gate evidence to the orchestrator.
+- [ ] Broker the job-scoped MCP execution session/transport for Hermes.
+- [ ] Ensure commits are pushed only to the AI-owned working branch after trusted verification.
+- [ ] Return complete quality-gate and MCP evidence to the orchestrator.
 
 ## Quality gates
 
@@ -58,7 +87,7 @@ AWS website/application:
 
 - [ ] API tests execute and are reported.
 - [ ] E2E tests execute and are reported.
-- [ ] Required failures block PR creation.
+- [ ] Required failures block commit/PR creation.
 
 RPA:
 
@@ -75,14 +104,17 @@ Use a dedicated non-production Jira card and non-production repository path firs
 2. Verify exactly one intake event is persisted/enqueued.
 3. Verify Effective Context resolves the expected repository/repositories.
 4. For RPA, verify Component → repository routing exactly matches SSOT.
-5. Verify AI branch naming contains the Jira key.
-6. Verify Agent Runner cannot merge or deploy production.
-7. Verify required tests execute.
-8. Verify PR is created with Jira key, job ID and quality-gate evidence.
-9. Verify Jira receives progress comments/status movement when available.
-10. Human-merges the test PR.
-11. Verify GitHub webhook updates the job to DONE only after every required PR is merged.
-12. Verify Jira completion synchronization.
+5. Verify the Agent Runner creates/brokers a job-scoped MCP execution scope.
+6. Ask Hermes to inspect an allowed repository and verify MCP access succeeds.
+7. Ask/test an out-of-scope repository call and verify MCP rejects it.
+8. Verify AI branch naming contains the Jira key.
+9. Verify Hermes cannot merge, deploy production or retrieve production credentials.
+10. Verify required trusted tests execute.
+11. Verify PR is created with Jira key, job ID, quality-gate evidence and Hermes/MCP audit references.
+12. Verify Jira receives progress comments/status movement when available.
+13. Human-merges the test PR.
+14. Verify GitHub webhook updates the job to DONE only after every required PR is merged.
+15. Verify Jira completion synchronization.
 
 ## Activation approval
 
@@ -94,8 +126,10 @@ Activated at:
 Environment:
 Jira projects enabled:
 GitHub organizations enabled:
-Agent Runner:
-Context Resolver version:
+Hermes profile/version:
+AI SDLC MCP version/commit:
+Agent Runner version/commit:
+Context Resolver version/commit:
 Orchestrator version/commit:
 Smoke-test Jira key:
 ```
