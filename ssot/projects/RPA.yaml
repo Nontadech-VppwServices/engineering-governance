@@ -1,0 +1,44 @@
+schema_version: 1
+project:
+  id: RPA
+  name: RPA
+  status: active
+  domain: automation
+  type: rpa
+ownership:
+  team: engineering
+  technical_owner: null
+  business_owner: null
+  status: unverified
+jira:
+  status: unmapped
+  project_key: null
+repository:
+  provider: github
+  organization: VespiarioThailand
+  name: RPA
+  default_branch: main
+runtime:
+  family: python
+  language: python
+  automation_framework: mixed
+  dependency_source: requirements.txt
+deployment:
+  type: on_prem
+  status: verified
+  verification_source: owner_confirmation
+  platform: server
+  packaging: repository_runtime
+testing:
+  policy: policies/testing.md
+  profile: rpa
+  workflow_test_required: true
+  compliance_status: unverified
+business_context:
+  policy: policies/business-context.md
+  repository_location: docs/business/
+  status: not_onboarded
+ai:
+  allow: {read: true, create_branch: true, commit: true, create_pr: true}
+  deny: {merge: true, production_deploy: true, production_credentials: true}
+unresolved: [technical_owner, business_owner, jira_mapping, on_prem_deployment_mechanism, test_gate_compliance]
