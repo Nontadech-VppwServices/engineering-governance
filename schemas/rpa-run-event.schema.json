@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://engineering-governance.local/schemas/rpa-run-event.schema.json",
+  "title": "RPA Run Event",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "event_id",
+    "run_id",
+    "bot_id",
+    "environment",
+    "event_type",
+    "occurred_at"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "event_id": { "type": "string", "minLength": 8, "maxLength": 128 },
+    "run_id": { "type": "string", "minLength": 8, "maxLength": 128 },
+    "bot_id": { "type": "string", "pattern": "^[A-Z][A-Z0-9_-]{1,80}$" },
+    "project_id": { "type": ["string", "null"] },
+    "environment": { "enum": ["dev", "uat", "prod", "local", "unknown"] },
+    "event_type": {
+      "enum": ["started", "progress", "completed", "failed", "cancelled", "skipped"]
+    },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "started_at": { "type": ["string", "null"], "format": "date-time" },
+    "finished_at": { "type": ["string", "null"], "format": "date-time" },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "items_received": { "type": "integer", "minimum": 0 },
+        "items_processed": { "type": "integer", "minimum": 0 },
+        "items_succeeded": { "type": "integer", "minimum": 0 },
+        "items_failed": { "type": "integer", "minimum": 0 },
+        "items_skipped": { "type": "integer", "minimum": 0 },
+        "retry_count": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "error": {
+      "type": ["object", "null"],
+      "properties": {
+        "code": { "type": "string", "minLength": 2, "maxLength": 100 },
+        "summary": { "type": "string", "maxLength": 500 },
+        "retryable": { "type": ["boolean", "null"] }
+      },
+      "required": ["code", "summary"],
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "correlation_id": { "type": ["string", "null"] },
+        "log_reference": { "type": ["string", "null"] },
+        "artifact_reference": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Sanitized project-specific metadata. Must not contain credentials, tokens, cookies, or sensitive business payloads.",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
