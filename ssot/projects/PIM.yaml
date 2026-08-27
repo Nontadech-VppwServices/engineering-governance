@@ -11,11 +11,13 @@ ownership:
   team: engineering
   technical_owner: unverified
   business_owner: unverified
+  status: unverified
 
 jira:
+  status: mapped
   project_key: PIM
   project_name: Product Information Management
-  status: verified
+  verification: verified
 
 repository:
   provider: github
@@ -79,6 +81,8 @@ business_context:
 
 deployment:
   type: aws
+  status: verified
+  verification_source: repository_workflow_and_owner_confirmation
   platform: ecs_fargate
   image_registry: ecr
   region: ap-southeast-7
