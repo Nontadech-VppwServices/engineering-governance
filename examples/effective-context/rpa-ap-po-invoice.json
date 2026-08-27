@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "request_id": "example-rpa-ap-po-invoice",
+  "generated_at": "2026-08-27T10:30:00+07:00",
+  "project": {
+    "id": "RPA_AP_PO_INVOICE",
+    "name": "RPA AP PO Invoice",
+    "domain": "d365",
+    "type": "rpa",
+    "archetype": "onprem-playwright-typescript-rpa",
+    "jira_project_key": "RPA"
+  },
+  "jira": {
+    "issue_key": "RPA-100",
+    "summary": "AP PO invoice cannot complete D365 posting flow",
+    "status": "To Do",
+    "issue_type": "Bug",
+    "component": "AP_PO_INVOICE",
+    "work_type": "bug",
+    "retrieved_at": "2026-08-27T10:29:30+07:00"
+  },
+  "routing": {
+    "mode": "deterministic_component",
+    "status": "resolved",
+    "repositories": [
+      {
+        "repository": "VespiarioThailand/rpa-ap-po-invoice",
+        "role": "primary",
+        "confidence": 1,
+        "reason": "RPA Component AP_PO_INVOICE maps through governance SSOT.",
+        "evidence": ["RPA-100", "component:AP_PO_INVOICE", "ssot/jira-routing/RPA.yaml"]
+      }
+    ]
+  },
+  "governance": {
+    "policies": ["policies/testing.md", "policies/jira-repository-routing.md", "policies/context-resolution.md"],
+    "adrs": ["ADR-GLOBAL-001", "ADR-GLOBAL-003", "ADR-GLOBAL-004"],
+    "bdrs": [],
+    "exceptions": []
+  },
+  "business": {
+    "context_status": "scaffolded_pending_human_review",
+    "context_paths": ["docs/business/README.md"],
+    "approved_specifications": [],
+    "live_jira_is_authoritative": true
+  },
+  "repositories": [
+    {
+      "repository": "VespiarioThailand/rpa-ap-po-invoice",
+      "target_branch": "main",
+      "facts": {
+        "runtime": "node/typescript",
+        "automation": "playwright",
+        "deployment": "on_prem"
+      },
+      "project_context_paths": ["docs/business/README.md"]
+    }
+  ],
+  "compliance": {
+    "testing": "gap",
+    "business_context": "scaffolded_pending_human_review",
+    "deployment": "verified",
+    "findings": []
+  },
+  "conflicts": [],
+  "unresolved": ["technical_owner", "business_owner"],
+  "decision": {
+    "can_plan": true,
+    "can_modify_code": true,
+    "can_create_pr": true,
+    "can_deploy_production": false,
+    "reason": null
+  },
+  "sources": [
+    {
+      "id": "RPA-100",
+      "type": "jira_issue",
+      "authority": "jira_current_state",
+      "retrieved_at": "2026-08-27T10:29:30+07:00",
+      "cached": false
+    },
+    {
+      "id": "ssot/jira-routing/RPA.yaml",
+      "type": "governance",
+      "authority": "organization_policy",
+      "retrieved_at": "2026-08-27T10:29:31+07:00",
+      "cached": false
+    }
+  ]
+}
