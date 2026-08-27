@@ -34,12 +34,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: reference/context-resolver/package-lock.json
 
       - name: Install reference resolver dependencies
         working-directory: reference/context-resolver
-        run: npm install --package-lock-only && npm ci
+        run: npm install
 
       - name: Typecheck
         working-directory: reference/context-resolver
