@@ -1,0 +1,55 @@
+name: Phase 4 Orchestrator Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'reference/ai-sdlc-orchestrator/**'
+      - 'schemas/jira-ai-intake-event.schema.json'
+      - 'schemas/ai-sdlc-job.schema.json'
+      - 'schemas/agent-execution-request.schema.json'
+      - 'schemas/agent-execution-result.schema.json'
+      - 'policies/phase4-orchestration.md'
+      - 'decisions/adr/global/ADR-GLOBAL-005-phase4-ai-sdlc-orchestration.md'
+      - 'ssot/jira-workflow/**'
+      - '.github/workflows/phase4-orchestrator-validation.yml'
+  pull_request:
+    paths:
+      - 'reference/ai-sdlc-orchestrator/**'
+      - 'schemas/jira-ai-intake-event.schema.json'
+      - 'schemas/ai-sdlc-job.schema.json'
+      - 'schemas/agent-execution-request.schema.json'
+      - 'schemas/agent-execution-result.schema.json'
+      - 'ssot/jira-workflow/**'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Phase 4 JSON schemas
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('schemas/jira-ai-intake-event.schema.json','utf8'))"
+          node -e "JSON.parse(require('fs').readFileSync('schemas/ai-sdlc-job.schema.json','utf8'))"
+          node -e "JSON.parse(require('fs').readFileSync('schemas/agent-execution-request.schema.json','utf8'))"
+          node -e "JSON.parse(require('fs').readFileSync('schemas/agent-execution-result.schema.json','utf8'))"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install orchestrator dependencies
+        working-directory: reference/ai-sdlc-orchestrator
+        run: npm install --package-lock-only && npm ci
+
+      - name: Typecheck
+        working-directory: reference/ai-sdlc-orchestrator
+        run: npm run typecheck
+
+      - name: Tests
+        working-directory: reference/ai-sdlc-orchestrator
+        run: npm test
