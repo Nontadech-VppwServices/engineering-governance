@@ -19,6 +19,7 @@ It is designed to become the governance foundation for an AI-assisted SDLC acros
 7. AI memory, generated summaries, embeddings, and search indexes are never authoritative sources.
 8. AI may propose changes to governance, ADRs, and BDRs, but approval remains a human responsibility.
 9. Production deployment must remain controlled by CI/CD and environment protection rules, not direct AI access.
+10. Unknown or unmapped facts must remain explicitly unknown; AI must not fill governance gaps by inference.
 
 ## Current status
 
@@ -50,7 +51,33 @@ Project registry and governance standards:
 - `schemas/adr.schema.json` — ADR metadata schema.
 - `schemas/bdr.schema.json` — BDR metadata schema.
 
-No AI agent, vector database, or context service is required yet.
+### Phase 2 — Pilot onboarding complete
+
+Pilot project:
+
+- `RPA_D365_RETAIL_ECOMMERCE_EXPORT`
+- Registry: `ssot/projects/RPA_D365_RETAIL_ECOMMERCE_EXPORT.yaml`
+- Inventory: `onboarding/RPA_D365_RETAIL_ECOMMERCE_EXPORT/inventory.md`
+
+Verified during onboarding:
+
+- repository and default branch
+- Node.js/TypeScript runtime contract
+- Playwright automation dependency
+- Docker/Docker Compose execution model
+- scheduler/manual execution modes
+- repository quality gates
+- critical AI-facing requirement/architecture documents
+
+Explicitly unresolved rather than guessed:
+
+- Jira project key
+- technical/business ownership
+- actual deployment location
+- environment-to-branch mapping
+- CI/CD deployment workflow
+
+No implementation fact was automatically promoted to an Accepted ADR. Architecture candidates require human review before they become authoritative decisions.
 
 ## Planned evolution
 
@@ -59,7 +86,7 @@ Phase 0  Governance foundation                         COMPLETE
    ↓
 Phase 1  Project registry + ADR/BDR standards         COMPLETE
    ↓
-Phase 2  Pilot project onboarding
+Phase 2  Pilot project onboarding                     COMPLETE (with unresolved mappings)
    ↓
 Phase 3  Effective Context Resolver
    ↓
@@ -76,4 +103,4 @@ When documentation, AI memory, cached data, and authoritative systems disagree, 
 
 ## Next step
 
-Select one active project as the Phase 2 pilot. Create its registry entry from `templates/PROJECT.yaml`, inventory its current architecture, and record only architecturally significant existing decisions before connecting any AI agent.
+Build Phase 3 Effective Context Resolver so any AI agent can request one resolved project context containing registry data, policies, applicable ADR/BDR records, repository truth pointers, approved exceptions, and unresolved/conflict flags.
