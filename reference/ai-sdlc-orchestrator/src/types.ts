@@ -1,4 +1,4 @@
-export type WorkType = 'bug' | 'new_module' | 'analysis';
+export type WorkType = 'bug' | 'new_module' | 'new_project' | 'analysis';
 
 export type JobState =
   | 'RECEIVED'
@@ -24,6 +24,7 @@ export interface IntakeEvent {
   work_type?: WorkType | null;
   component?: string | null;
   trigger_reason?: string | null;
+  plan_approved?: boolean;
 }
 
 export interface StateHistoryEntry {
@@ -53,6 +54,7 @@ export interface AiSdlcJob {
   repositories: string[];
   prs: PullRequestRef[];
   blocking_reason?: string | null;
+  artifacts?: Array<{ kind: 'analysis' | 'plan'; content: string; created_at: string }>;
   history: StateHistoryEntry[];
 }
 

@@ -1,0 +1,39 @@
+name: Platform Runtime Validation
+on:
+  push:
+    branches: [main]
+    paths: ['reference/**','compose.yaml','Caddyfile','.env.example','hermes/**','schemas/**','.github/workflows/platform-runtime-validation.yml']
+  pull_request:
+    paths: ['reference/**','compose.yaml','Caddyfile','.env.example','hermes/**','schemas/**']
+permissions: { contents: read }
+jobs:
+  packages:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: { service: [context-resolver, ai-sdlc-orchestrator, project-automation, hermes-governance, workflow-control, agent-runner, rpa-reporting] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: npm, cache-dependency-path: 'reference/${{ matrix.service }}/package-lock.json' }
+      - run: npm ci
+        working-directory: reference/${{ matrix.service }}
+      - run: npm run typecheck
+        working-directory: reference/${{ matrix.service }}
+      - run: npm test
+        working-directory: reference/${{ matrix.service }}
+      - run: npm run build
+        working-directory: reference/${{ matrix.service }}
+  contracts-and-images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node -e "for(const f of require('fs').readdirSync('schemas').filter(x=>x.endsWith('.schema.json'))) JSON.parse(require('fs').readFileSync('schemas/'+f,'utf8'))"
+      - run: cp .env.example .env && docker compose config --quiet
+      - run: docker compose build context-resolver phase4-ai-sdlc phase5-project-automation phase6-hermes-governance workflow-control agent-runner rpa-reporting reporting-worker hermes-line-delivery
+      - name: Compose smoke test
+        run: |
+          sed -i 's/^PUBLIC_DOMAIN=.*/PUBLIC_DOMAIN=localhost/; s/^AGENT_MODE=.*/AGENT_MODE=mock/' .env
+          docker compose up -d --build --wait
+          curl --fail --silent --show-error --insecure https://localhost/healthz
+      - if: always()
+        run: docker compose down

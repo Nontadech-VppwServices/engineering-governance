@@ -7,7 +7,7 @@ export class AutomationError extends Error {
 }
 
 export class ProjectAutomationService {
-  constructor(private readonly store: PlanStore, private readonly publisher: ScaffoldPublisher) {}
+  constructor(private readonly store: PlanStore, private readonly publisher: ScaffoldPublisher, private readonly events?: { publish(plan: AutomationPlan): Promise<void> }) {}
 
   async createPlan(request: AutomationRequest): Promise<AutomationPlan> {
     validateRequest(request);
@@ -36,6 +36,7 @@ export class ProjectAutomationService {
       updated_at: now,
     };
     await this.store.save(plan);
+    await this.events?.publish(plan);
     return plan;
   }
 
@@ -53,6 +54,7 @@ export class ProjectAutomationService {
     plan = transition(plan, 'APPROVED', 'human', now, 'Human plan approval received.');
     plan = { ...plan, approvals: [...plan.approvals, { actor_id: actorId, actor_type: 'human', approved_at: now }] };
     await this.store.save(plan);
+    await this.events?.publish(plan);
     return plan;
   }
 
@@ -89,10 +91,12 @@ export class ProjectAutomationService {
       }
       plan = transition(plan, 'COMPLETED', 'system');
       await this.store.save(plan);
+      await this.events?.publish(plan);
       return plan;
     } catch (error) {
       plan = transition(plan, 'FAILED', 'system', undefined, error instanceof Error ? error.message : 'Execution failed.');
       await this.store.save(plan);
+      await this.events?.publish(plan);
       throw error;
     }
   }

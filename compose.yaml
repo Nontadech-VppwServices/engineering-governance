@@ -1,120 +1,218 @@
 name: ${COMPOSE_PROJECT_NAME:-engineering-governance}
 
+x-service-defaults: &service-defaults
+  restart: unless-stopped
+  networks: [backend]
+  logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+  deploy:
+    resources:
+      limits: { cpus: "1.00", memory: 1G }
+
 services:
+  caddy:
+    <<: *service-defaults
+    image: caddy:2.10-alpine
+    ports: ["80:80", "443:443"]
+    environment: { PUBLIC_DOMAIN: "${PUBLIC_DOMAIN:?PUBLIC_DOMAIN is required}", ACME_EMAIL: "${ACME_EMAIL:-}" }
+    volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "caddy-data:/data", "caddy-config:/config"]
+    networks: [edge, backend]
+    depends_on: { phase4-ai-sdlc: { condition: service_healthy }, hermes-chat: { condition: service_healthy } }
+    healthcheck: { test: ["CMD", "wget", "--no-check-certificate", "-qO-", "https://localhost/healthz"], interval: 10s, timeout: 3s, retries: 10 }
+
   postgres:
+    <<: *service-defaults
     image: postgres:16-alpine
-    restart: unless-stopped
+    environment: { POSTGRES_DB: "${POSTGRES_DB:?required}", POSTGRES_USER: "${POSTGRES_USER:?required}", POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?required}" }
+    volumes: ["postgres-data:/var/lib/postgresql/data"]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"], interval: 5s, timeout: 3s, retries: 20 }
+
+  redis:
+    <<: *service-defaults
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?required}"]
+    environment: { REDIS_PASSWORD: "${REDIS_PASSWORD}" }
+    volumes: ["redis-data:/data"]
+    healthcheck: { test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep PONG"], interval: 5s, timeout: 3s, retries: 20 }
+
+  context-resolver:
+    <<: *service-defaults
+    build: { context: ./reference/context-resolver }
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
-      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
+      CONTEXT_RESOLVER_PORT: 8083
+      CONTEXT_RESOLVER_API_TOKEN: ${CONTEXT_RESOLVER_API_TOKEN:?required}
+      GOVERNANCE_ROOT: /governance
+      JIRA_BASE_URL: ${JIRA_BASE_URL:?required}
+      JIRA_EMAIL: ${JIRA_EMAIL:?required}
+      JIRA_API_TOKEN: ${JIRA_API_TOKEN:?required}
+      GITHUB_API_URL: ${GITHUB_API_URL:-https://api.github.com}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:?required}
+    volumes: ["./:/governance:ro"]
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8083/healthz"], interval: 10s, timeout: 3s, retries: 10 }
+
+  phase4-ai-sdlc:
+    <<: *service-defaults
+    build: { context: ./reference/ai-sdlc-orchestrator }
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      PHASE4_PORT: 8084
+      PHASE4_API_TOKEN: ${PHASE4_API_TOKEN:?required}
+      CONTEXT_RESOLVER_URL: http://context-resolver:8083
+      CONTEXT_RESOLVER_API_TOKEN: ${CONTEXT_RESOLVER_API_TOKEN:?required}
+      AGENT_RUNNER_URL: http://agent-runner:8088/v1/execute
+      AGENT_RUNNER_API_TOKEN: ${AGENT_RUNNER_API_TOKEN:?required}
+      JIRA_BASE_URL: ${JIRA_BASE_URL:?required}
+      JIRA_EMAIL: ${JIRA_EMAIL:?required}
+      JIRA_API_TOKEN: ${JIRA_API_TOKEN:?required}
+      JIRA_WEBHOOK_SECRET: ${JIRA_WEBHOOK_SECRET:?required}
+      JIRA_AI_ASSIGNEE_ACCOUNT_IDS: ${JIRA_AI_ASSIGNEE_ACCOUNT_IDS:?required}
+      JIRA_ALLOWED_PROJECT_KEYS: ${JIRA_ALLOWED_PROJECT_KEYS:?required}
+      JIRA_COMPONENT_FIELD_ID: ${JIRA_COMPONENT_FIELD_ID:-}
+      JIRA_WORK_TYPE_FIELD_ID: ${JIRA_WORK_TYPE_FIELD_ID:-}
+      JIRA_STATUS_MAPPINGS_JSON: ${JIRA_STATUS_MAPPINGS_JSON:-{}}
+      GITHUB_API_URL: ${GITHUB_API_URL:-https://api.github.com}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:?required}
+      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:?required}
+      PHASE6_API_URL: http://phase6-hermes-governance:8086
+      PHASE6_API_TOKEN: ${PHASE6_API_TOKEN:?required}
+      REPORTING_API_URL: http://rpa-reporting:8089
+      REPORTING_API_TOKEN: ${REPORTING_API_TOKEN:?required}
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_healthy }, context-resolver: { condition: service_healthy }, agent-runner: { condition: service_healthy }, phase6-hermes-governance: { condition: service_healthy }, rpa-reporting: { condition: service_healthy } }
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8084/healthz"], interval: 10s, timeout: 3s, retries: 15 }
 
   phase5-project-automation:
-    build:
-      context: ./reference/project-automation
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      PHASE5_API_TOKEN: ${PHASE5_API_TOKEN:?PHASE5_API_TOKEN is required}
-      PHASE5_PORT: 8085
-      GENERATED_OUTPUT_DIR: /data/generated-projects
-    ports:
-      - "${PHASE5_PORT:-8085}:8085"
-    volumes:
-      - generated-projects:/data/generated-projects
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8085/healthz"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
+    <<: *service-defaults
+    build: { context: ./reference/project-automation }
+    environment: { DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}", PHASE5_API_TOKEN: "${PHASE5_API_TOKEN:?required}", ACTOR_SIGNING_SECRET: "${ACTOR_SIGNING_SECRET:?required}", PHASE5_PORT: 8085, GENERATED_OUTPUT_DIR: /data/generated-projects, REPORTING_API_URL: "http://rpa-reporting:8089", REPORTING_API_TOKEN: "${REPORTING_API_TOKEN:?required}" }
+    volumes: ["generated-projects:/data/generated-projects"]
+    depends_on: { postgres: { condition: service_healthy }, rpa-reporting: { condition: service_healthy } }
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8085/healthz"], interval: 10s, timeout: 3s, retries: 10 }
 
   phase6-hermes-governance:
-    build:
-      context: ./reference/hermes-governance
-    restart: unless-stopped
+    <<: *service-defaults
+    build: { context: ./reference/hermes-governance }
+    environment: { DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}", PHASE6_API_TOKEN: "${PHASE6_API_TOKEN:?required}", ACTOR_SIGNING_SECRET: "${ACTOR_SIGNING_SECRET:?required}", PHASE6_PORT: 8086, HERMES_GENERATED_SKILLS_DIR: /data/generated-skills }
+    volumes: ["generated-skills:/data/generated-skills"]
+    depends_on: { postgres: { condition: service_healthy } }
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8086/healthz"], interval: 10s, timeout: 3s, retries: 10 }
+
+  workflow-control:
+    <<: *service-defaults
+    build: { context: ./reference/workflow-control }
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      PHASE6_API_TOKEN: ${PHASE6_API_TOKEN:?PHASE6_API_TOKEN is required}
-      PHASE6_PORT: 8086
-      HERMES_GENERATED_SKILLS_DIR: /data/generated-skills
-    ports:
-      - "${PHASE6_PORT:-8086}:8086"
-    volumes:
-      - generated-skills:/data/generated-skills
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8086/healthz"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
+      WORKFLOW_CONTROL_PORT: 8087
+      WORKFLOW_CONTROL_API_TOKEN: ${WORKFLOW_CONTROL_API_TOKEN:?required}
+      WORKFLOW_CONTROL_GATEWAY_TOKEN: ${WORKFLOW_CONTROL_GATEWAY_TOKEN:?required}
+      PRINCIPAL_SIGNING_SECRET: ${PRINCIPAL_SIGNING_SECRET:?required}
+      ACTOR_SIGNING_SECRET: ${ACTOR_SIGNING_SECRET:?required}
+      LINE_IDENTITIES_JSON: ${LINE_IDENTITIES_JSON:?required}
+      GOVERNANCE_ROOT: /governance
+      JIRA_BASE_URL: ${JIRA_BASE_URL:?required}
+      JIRA_EMAIL: ${JIRA_EMAIL:?required}
+      JIRA_API_TOKEN: ${JIRA_API_TOKEN:?required}
+      JIRA_AI_PRIMARY_ASSIGNEE_ACCOUNT_ID: ${JIRA_AI_PRIMARY_ASSIGNEE_ACCOUNT_ID:?required}
+      JIRA_WORK_TYPE_FIELD_ID: ${JIRA_WORK_TYPE_FIELD_ID:-}
+      JIRA_WEBHOOK_SECRET: ${JIRA_WEBHOOK_SECRET:?required}
+      JIRA_AI_ASSIGNEE_ACCOUNT_IDS: ${JIRA_AI_ASSIGNEE_ACCOUNT_IDS:?required}
+      JIRA_ALLOWED_PROJECT_KEYS: ${JIRA_ALLOWED_PROJECT_KEYS:?required}
+      JIRA_MODULE_NAME_FIELD_ID: ${JIRA_MODULE_NAME_FIELD_ID:-}
+      JIRA_TARGET_PATH_FIELD_ID: ${JIRA_TARGET_PATH_FIELD_ID:-}
+      JIRA_PROJECT_ID_FIELD_ID: ${JIRA_PROJECT_ID_FIELD_ID:-}
+      JIRA_DOMAIN_FIELD_ID: ${JIRA_DOMAIN_FIELD_ID:-}
+      JIRA_PROJECT_TYPE_FIELD_ID: ${JIRA_PROJECT_TYPE_FIELD_ID:-}
+      JIRA_DEPLOYMENT_TYPE_FIELD_ID: ${JIRA_DEPLOYMENT_TYPE_FIELD_ID:-}
+      JIRA_REPOSITORY_FIELD_ID: ${JIRA_REPOSITORY_FIELD_ID:-}
+      CONTEXT_RESOLVER_URL: http://context-resolver:8083
+      CONTEXT_RESOLVER_API_TOKEN: ${CONTEXT_RESOLVER_API_TOKEN:?required}
+      GITHUB_API_URL: ${GITHUB_API_URL:-https://api.github.com}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:?required}
+      PHASE4_API_URL: http://phase4-ai-sdlc:8084
+      PHASE4_API_TOKEN: ${PHASE4_API_TOKEN:?required}
+      PHASE5_API_URL: http://phase5-project-automation:8085
+      PHASE5_API_TOKEN: ${PHASE5_API_TOKEN:?required}
+      REPORTING_API_URL: http://rpa-reporting:8089
+      REPORTING_API_TOKEN: ${REPORTING_API_TOKEN:?required}
+    depends_on: { postgres: { condition: service_healthy }, phase4-ai-sdlc: { condition: service_healthy }, phase5-project-automation: { condition: service_healthy }, rpa-reporting: { condition: service_healthy } }
+    volumes: ["./:/governance:ro"]
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8087/healthz"], interval: 10s, timeout: 3s, retries: 10 }
 
-  hermes-skill-sync:
-    profiles: ["hermes"]
-    image: alpine:3.22
-    restart: "no"
-    user: root
-    environment:
-      HERMES_UID: ${HERMES_UID:-10000}
-      HERMES_GID: ${HERMES_GID:-10000}
-    command:
-      - /bin/sh
-      - -ec
-      - |
-        mkdir -p /opt/data/skills/engineering-governance /opt/data/skills/generated
-        cp -R /seed/engineering-governance/. /opt/data/skills/engineering-governance/
-        if [ -d /generated ]; then cp -R /generated/. /opt/data/skills/generated/; fi
-        chown -R "$${HERMES_UID}:$${HERMES_GID}" /opt/data
-    volumes:
-      - hermes-data:/opt/data
-      - ./hermes/skills/engineering-governance:/seed/engineering-governance:ro
-      - generated-skills:/generated:ro
+  agent-runner:
+    <<: *service-defaults
+    build: { context: ./reference/agent-runner }
+    environment: { AGENT_RUNNER_PORT: 8088, AGENT_RUNNER_API_TOKEN: "${AGENT_RUNNER_API_TOKEN:?required}", AGENT_WORKSPACE_ROOT: /workspaces, AGENT_MODE: "${AGENT_MODE:-hermes}", GITHUB_TOKEN: "${GITHUB_TOKEN:?required}", HERMES_CODER_URL: "http://hermes-coder:8642", HERMES_CODER_API_KEY: "${HERMES_CODER_API_KEY:?required}" }
+    volumes: ["agent-workspaces:/workspaces"]
+    depends_on: { hermes-coder: { condition: service_healthy } }
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8088/healthz"], interval: 10s, timeout: 3s, retries: 15 }
 
-  hermes:
-    profiles: ["hermes"]
-    image: ${HERMES_IMAGE:-nousresearch/hermes-agent:latest}
-    restart: unless-stopped
+  rpa-reporting:
+    <<: *service-defaults
+    build: { context: ./reference/rpa-reporting }
+    environment: { DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}", REPORTING_API_TOKEN: "${REPORTING_API_TOKEN:?required}", REPORTING_PORT: 8089, LINE_ALERT_TARGET_ID: "${LINE_ALERT_TARGET_ID:?required}" }
+    depends_on: { postgres: { condition: service_healthy } }
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8089/healthz"], interval: 10s, timeout: 3s, retries: 10 }
+
+  reporting-worker:
+    <<: *service-defaults
+    build: { context: ./reference/rpa-reporting }
+    command: ["node", "dist/worker.js"]
+    environment: { DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}", HERMES_DELIVERY_URL: "http://hermes-line-delivery:8090", HERMES_DELIVERY_TOKEN: "${HERMES_DELIVERY_TOKEN:?required}", REPORT_MAX_ATTEMPTS: "${REPORT_MAX_ATTEMPTS:-8}", REPORT_TARGET_ID: "${LINE_HOME_CHANNEL:?required}", REPORT_DAILY_TIME: "${REPORT_DAILY_TIME:-09:00}", REPORT_WEEKLY_DAY: "${REPORT_WEEKLY_DAY:-1}", REPORT_WEEKLY_TIME: "${REPORT_WEEKLY_TIME:-09:05}", REPORT_MONTHLY_DAY: "${REPORT_MONTHLY_DAY:-1}", REPORT_MONTHLY_TIME: "${REPORT_MONTHLY_TIME:-09:10}" }
+    depends_on: { postgres: { condition: service_healthy }, hermes-line-delivery: { condition: service_healthy } }
+    healthcheck: { test: ["CMD-SHELL", "test -f /tmp/reporting-worker.healthy && find /tmp/reporting-worker.healthy -mmin -1 | grep -q ."], interval: 15s, timeout: 3s, retries: 5 }
+
+  hermes-line-delivery:
+    <<: *service-defaults
+    build: { context: ./reference/rpa-reporting }
+    command: ["node", "dist/delivery.js"]
+    environment: { HERMES_DELIVERY_PORT: 8090, HERMES_DELIVERY_TOKEN: "${HERMES_DELIVERY_TOKEN:?required}", LINE_CHANNEL_ACCESS_TOKEN: "${LINE_CHANNEL_ACCESS_TOKEN:?required}", LINE_DELIVERY_TARGET_IDS: "${LINE_DELIVERY_TARGET_IDS:?required}" }
+    healthcheck: { test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8090/healthz"], interval: 10s, timeout: 3s, retries: 10 }
+
+  hermes-chat:
+    <<: *service-defaults
+    image: ${HERMES_IMAGE:-nousresearch/hermes-agent@sha256:071a7e5e6787156d1469ad04088cdbc0ce3db25d2727cb5a4e3958e3c57aa8f7}
     command: gateway run
-    working_dir: /workspace/engineering-governance
     environment:
-      HERMES_DASHBOARD: ${HERMES_DASHBOARD:-1}
-      HERMES_UID: ${HERMES_UID:-10000}
-      HERMES_GID: ${HERMES_GID:-10000}
+      API_SERVER_ENABLED: "true"
+      API_SERVER_HOST: 0.0.0.0
+      API_SERVER_KEY: ${HERMES_CHAT_API_KEY:?required}
+      LINE_CHANNEL_ACCESS_TOKEN: ${LINE_CHANNEL_ACCESS_TOKEN:?required}
+      LINE_CHANNEL_SECRET: ${LINE_CHANNEL_SECRET:?required}
+      LINE_PORT: 8646
+      LINE_PUBLIC_URL: https://${PUBLIC_DOMAIN}
+      LINE_ALLOWED_USERS: ${LINE_ALLOWED_USERS:?required}
+      LINE_ALLOWED_GROUPS: ${LINE_ALLOWED_GROUPS:-}
+      LINE_ALLOW_ALL_USERS: "false"
+      LINE_HOME_CHANNEL: ${LINE_HOME_CHANNEL:?required}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      PHASE5_API_URL: http://phase5-project-automation:8085
-      PHASE5_API_TOKEN: ${PHASE5_API_TOKEN:?PHASE5_API_TOKEN is required}
-      PHASE6_API_URL: http://phase6-hermes-governance:8086
-      PHASE6_API_TOKEN: ${PHASE6_API_TOKEN:?PHASE6_API_TOKEN is required}
-    ports:
-      - "${HERMES_GATEWAY_PORT:-8642}:8642"
-      - "${HERMES_DASHBOARD_PORT:-9119}:9119"
-    shm_size: 1gb
-    volumes:
-      - hermes-data:/opt/data
-      - ./:/workspace/engineering-governance:ro
-    depends_on:
-      hermes-skill-sync:
-        condition: service_completed_successfully
-      phase5-project-automation:
-        condition: service_healthy
-      phase6-hermes-governance:
-        condition: service_healthy
+      WORKFLOW_CONTROL_URL: http://workflow-control:8087
+      WORKFLOW_CONTROL_API_TOKEN: ${WORKFLOW_CONTROL_API_TOKEN:?required}
+      WORKFLOW_CONTROL_GATEWAY_TOKEN: ${WORKFLOW_CONTROL_GATEWAY_TOKEN:?required}
+    volumes: ["hermes-chat-data:/opt/data", "./hermes/skills/engineering-governance:/opt/data/skills/engineering-governance:ro", "generated-skills:/opt/data/skills/generated:ro", "./:/governance:ro"]
+    depends_on: { hermes-data-init: { condition: service_completed_successfully }, workflow-control: { condition: service_healthy } }
+    healthcheck: { test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8642/health"], interval: 15s, timeout: 5s, retries: 12 }
 
-volumes:
-  postgres-data:
-  generated-projects:
-  generated-skills:
-  hermes-data:
+  hermes-coder:
+    <<: *service-defaults
+    image: ${HERMES_IMAGE:-nousresearch/hermes-agent@sha256:071a7e5e6787156d1469ad04088cdbc0ce3db25d2727cb5a4e3958e3c57aa8f7}
+    command: gateway run
+    environment: { API_SERVER_ENABLED: "true", API_SERVER_HOST: "0.0.0.0", API_SERVER_KEY: "${HERMES_CODER_API_KEY:?required}", OPENAI_API_KEY: "${OPENAI_API_KEY:-}", OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}", ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}" }
+    volumes: ["hermes-coder-data:/opt/data", "./hermes/skills/engineering-governance:/opt/data/skills/engineering-governance:ro", "generated-skills:/opt/data/skills/generated:ro", "agent-workspaces:/workspaces"]
+    depends_on: { hermes-data-init: { condition: service_completed_successfully } }
+    healthcheck: { test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8642/health"], interval: 15s, timeout: 5s, retries: 12 }
+
+  hermes-data-init:
+    image: alpine:3.22
+    restart: "no"
+    logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+    deploy:
+      resources:
+        limits: { cpus: "0.25", memory: 128M }
+    user: root
+    command: ["/bin/sh", "-ec", "mkdir -p /chat/skills /coder/skills && cp /seed/chat.yaml /chat/config.yaml && cp /seed/coder.yaml /coder/config.yaml && chown -R 10000:10000 /chat /coder"]
+    volumes: ["hermes-chat-data:/chat", "hermes-coder-data:/coder", "./hermes/config-chat.yaml:/seed/chat.yaml:ro", "./hermes/config-coder.yaml:/seed/coder.yaml:ro"]
+    networks: [backend]
+
+networks: { edge: {}, backend: {} }
+volumes: { postgres-data: {}, redis-data: {}, generated-projects: {}, generated-skills: {}, agent-workspaces: {}, hermes-chat-data: {}, hermes-coder-data: {}, caddy-data: {}, caddy-config: {} }

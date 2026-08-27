@@ -4,10 +4,10 @@ import { ContextResolutionError, ContextResolverService, type ContextResolveRequ
 
 const MAX_BODY_BYTES = 1024 * 1024;
 
-export function createContextResolverHttpServer(service: ContextResolverService): Server {
+export function createContextResolverHttpServer(service: ContextResolverService, apiToken?: string): Server {
   return createServer(async (req, res) => {
     try {
-      await routeRequest(req, res, service);
+      await routeRequest(req, res, service, apiToken);
     } catch (error) {
       writeError(res, error);
     }
@@ -18,11 +18,17 @@ async function routeRequest(
   req: IncomingMessage,
   res: ServerResponse,
   service: ContextResolverService,
+  apiToken?: string,
 ): Promise<void> {
   const url = new URL(req.url ?? '/', 'http://context-resolver.internal');
 
   if (req.method === 'GET' && url.pathname === '/healthz') {
     writeJson(res, 200, { status: 'ok' });
+    return;
+  }
+
+  if (apiToken && (apiToken.length < 16 || req.headers.authorization !== `Bearer ${apiToken}`)) {
+    writeJson(res, 401, { error: { code: 'UNAUTHORIZED', message: 'Bearer token is required.' } });
     return;
   }
 

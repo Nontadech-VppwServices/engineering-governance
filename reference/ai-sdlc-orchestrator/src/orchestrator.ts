@@ -34,6 +34,7 @@ export class AiSdlcOrchestrator {
       repositories: [],
       prs: [],
       blocking_reason: null,
+      artifacts: [],
       history: [{ state: 'RECEIVED', entered_at: now, actor: 'jira', reason: event.trigger_reason ?? null }],
     };
     await this.ports.jobs.save(job);
@@ -70,6 +71,7 @@ export class AiSdlcOrchestrator {
     });
 
     if (workType === 'analysis') {
+      job = { ...job, artifacts: [...(job.artifacts ?? []), { kind: 'analysis', content: `Analysis completed for ${issue.summary}. Resolved repositories: ${job.repositories.join(', ') || 'none'}.`, created_at: new Date().toISOString() }] };
       job = transitionJob(job, 'DONE', 'ai', 'Analysis-only request completed without repository modification.');
       await this.persistAndSync(job, 'AI analysis completed. No code/PR was requested.');
       return job;
@@ -81,8 +83,15 @@ export class AiSdlcOrchestrator {
       return job;
     }
 
-    if (workType === 'new_module') {
+    if (workType === 'new_project') {
+      job = transitionJob(job, 'WAITING_INFORMATION', 'system', 'New Project must be routed through Phase 5 project automation.');
+      await this.persistAndSync(job, 'New Project requires the Phase 5 planning workflow.');
+      return job;
+    }
+
+    if (workType === 'new_module' && !event.plan_approved) {
       job = transitionJob(job, 'PLANNING', 'ai');
+      job = { ...job, artifacts: [...(job.artifacts ?? []), { kind: 'plan', content: `Implement ${issue.summary} in ${job.repositories.join(', ')} after Phase 5 approval.`, created_at: new Date().toISOString() }] };
       job = transitionJob(job, 'WAITING_PLAN_APPROVAL', 'system', 'New Module requires human plan approval before coding.');
       await this.persistAndSync(job, 'Repository routing is resolved. New Module is waiting for human plan approval before coding.');
       return job;
@@ -115,6 +124,19 @@ export class AiSdlcOrchestrator {
     job = transitionJob(job, 'CODING', 'human', 'Human plan approval received.');
     await this.ports.jobs.save(job);
     return this.executeAndCreatePullRequests(job, issue.summary, context);
+  }
+
+  async getJob(jobId: string): Promise<AiSdlcJob | null> {
+    return this.ports.jobs.findById(jobId);
+  }
+
+  async cancelJob(jobId: string): Promise<AiSdlcJob> {
+    let job = await this.ports.jobs.findById(jobId);
+    if (!job) throw new Error(`AI SDLC job not found: ${jobId}`);
+    if (['DONE', 'FAILED', 'CANCELLED'].includes(job.state)) return job;
+    job = transitionJob(job, 'CANCELLED', 'human', 'Cancelled through the trusted control plane.');
+    await this.persistAndSync(job, 'AI SDLC job was cancelled by an authorized human.');
+    return job;
   }
 
   async handlePullRequestMerged(event: PullRequestMergedEvent): Promise<AiSdlcJob | null> {
@@ -243,6 +265,7 @@ export class AiSdlcOrchestrator {
       message,
       desiredCanonicalState: job.state,
     });
+    await this.ports.events?.publish(job, message);
   }
 }
 

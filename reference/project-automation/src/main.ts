@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { FilesystemScaffoldPublisher } from './adapters/filesystem.js';
 import { PostgresPlanStore } from './adapters/postgres.js';
+import { ReportingPlanEventPublisher } from './adapters/reporting-events.js';
 import { createProjectAutomationHttpServer } from './http.js';
 import { ProjectAutomationService } from './service.js';
 
@@ -14,7 +15,7 @@ const port = Number(process.env.PHASE5_PORT ?? '8085');
 const pool = new pg.Pool({ connectionString: databaseUrl });
 const sqlPath = resolve(dirname(fileURLToPath(import.meta.url)), '../sql/001_project_automation.sql');
 await pool.query(await readFile(sqlPath, 'utf8'));
-const server = createProjectAutomationHttpServer(new ProjectAutomationService(new PostgresPlanStore(pool), new FilesystemScaffoldPublisher(outputRoot)), apiToken);
+const server = createProjectAutomationHttpServer(new ProjectAutomationService(new PostgresPlanStore(pool), new FilesystemScaffoldPublisher(outputRoot), new ReportingPlanEventPublisher(required('REPORTING_API_URL'), required('REPORTING_API_TOKEN'))), apiToken, required('ACTOR_SIGNING_SECRET'));
 server.listen(port, '0.0.0.0', () => console.log(JSON.stringify({ service: 'project-automation', port })));
 
 function required(name: string): string { const value = process.env[name]; if (!value) throw new Error(`${name} is required.`); return value; }

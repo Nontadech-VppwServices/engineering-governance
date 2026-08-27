@@ -143,9 +143,9 @@ CI validation:
 
 Effective Context is a computed view, never a replacement for Jira/GitHub/ADR/BDR/policy sources.
 
-### Phase 4 — Jira → AI → Git → PR — Implementation Complete
+### Phase 4 — Jira → AI → Git → PR — Runtime Complete
 
-Phase 4 implementation is complete in `main`. **Production runtime is not active yet.** Runtime activation is controlled separately by `operations/phase4-runtime-activation.md`.
+Phase 4 now has an executable runtime, Docker image, PostgreSQL migrations, Redis/BullMQ worker, authenticated APIs, Phase 5 handoff and isolated Agent Runner. Connecting real Jira/GitHub credentials remains an operator activation step.
 
 Governance/contracts:
 
@@ -170,7 +170,7 @@ Reference TypeScript orchestrator:
 - Agent Runner HTTP contract
 - multi-repository PR creation
 - Bug → code/test/PR workflow
-- New Module → mandatory `WAITING_PLAN_APPROVAL`
+- New Module → Phase 5 approval → signed/idempotent Phase 4 handoff
 - Analysis-only workflow without code/PR
 - AWS API + E2E quality-gate enforcement from Effective Context
 - GitHub `pull_request` webhook completion tracking
@@ -245,7 +245,15 @@ Docker/runtime:
 - `.env.example` plus a local ignored `.env`
 - `operations/phase5-6-docker-runtime.md`
 - PostgreSQL, Phase 5, and Phase 6 start with `docker compose up -d --build`
-- Hermes starts explicitly through the `hermes` Compose profile after interactive provider setup
+- Hermes Chat and Hermes Coder run as separate containers; generated skills are mounted read-only and become visible without the previous one-shot copy
+
+### LINE workflow control and reporting runtime
+
+- `reference/workflow-control/` provides allowlisted LINE identity/role resolution, short-lived signed principals, immutable action drafts and private confirmation
+- `reference/agent-runner/` provides isolated repository workspaces and independently verified git/test evidence
+- `reference/rpa-reporting/` provides idempotent RPA/workflow event ingestion, PostgreSQL aggregation, a notification outbox, scheduled reports, alert deduplication, retry and dead-letter handling
+- Caddy publishes only HTTPS webhook routes; internal APIs remain on the Compose backend network
+- The Hermes bundled LINE adapter handles signed inbound webhooks while the central Hermes LINE delivery adapter owns sanitized outbound push delivery
 
 ## Organization default project archetypes
 
@@ -291,28 +299,30 @@ Phase 2.3  Jira repository routing                    COMPLETE
    ↓
 Phase 3    Effective Context Resolver                  COMPLETE
    ↓
-Phase 4    Jira → AI → Git → PR workflow              IMPLEMENTATION COMPLETE
+Phase 4    Jira → AI → Git → PR workflow              RUNTIME COMPLETE
    ↓
 Phase 5    Module / New Project automation             COMPLETE
    ↓
 Phase 6    Hermes Skills / Memory / continuous improvement  COMPLETE
 ```
 
-Parallel operational workstream:
+Production runtime:
 
 ```text
-Phase 4 Runtime Activation
+Docker Compose
    ├── Context Resolver deployment
    ├── Redis / BullMQ
    ├── PostgreSQL JobStore
    ├── Jira webhook + AI assignee
    ├── GitHub App + webhook
-   ├── Agent Runner endpoint
-   ├── secrets / monitoring
-   └── non-production smoke test
+   ├── isolated Hermes Agent Runner
+   ├── LINE Workflow Control
+   ├── central RPA reporting
+   ├── Caddy HTTPS ingress
+   └── health / retry / dead-letter controls
 ```
 
-Parallel product workstream:
+Central reporting:
 
 ```text
 RPA Reporting Service

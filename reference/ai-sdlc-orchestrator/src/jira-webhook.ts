@@ -115,6 +115,7 @@ function normalizeWorkType(value?: string | null, issueType?: string | null): Wo
   const normalized = value?.trim().toLowerCase().replace(/[\s-]+/g, '_');
   if (normalized === 'bug' || normalized === 'bug_fix') return 'bug';
   if (normalized === 'new_module' || normalized === 'module') return 'new_module';
+  if (normalized === 'new_project' || normalized === 'project') return 'new_project';
   if (normalized === 'analysis' || normalized === 'analysis_only') return 'analysis';
   return issueType?.trim().toLowerCase() === 'bug' ? 'bug' : null;
 }

@@ -69,6 +69,7 @@ export interface OrchestratorPorts {
   agent: AgentRunnerPort;
   git: GitHostPort;
   jira: JiraSyncPort;
+  events?: { publish(job: AiSdlcJob, message: string): Promise<void> };
 }
 
 export interface PullRequestEventHandlerPort {

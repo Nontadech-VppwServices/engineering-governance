@@ -116,6 +116,14 @@ describe('AiSdlcOrchestrator', () => {
     expect(job.prs).toHaveLength(0);
   });
 
+  it('does not request duplicate approval for an approved Phase 5 handoff', async () => {
+    const env = setup();
+    const job = await env.orchestrator.processIntake(intake({ event_id: 'phase5:plan-1', work_type: 'new_module', plan_approved: true }));
+    expect(job.state).toBe('WAITING_REVIEW');
+    expect(env.agent.requests).toHaveLength(1);
+    expect(job.history.map((item) => item.state)).not.toContain('WAITING_PLAN_APPROVAL');
+  });
+
   it('deduplicates the same intake event', async () => {
     const env = setup();
     const first = await env.orchestrator.processIntake(intake());

@@ -44,7 +44,7 @@ jobs:
 
       - name: Install orchestrator dependencies
         working-directory: reference/ai-sdlc-orchestrator
-        run: npm install --package-lock-only && npm ci
+        run: npm ci
 
       - name: Typecheck
         working-directory: reference/ai-sdlc-orchestrator
@@ -53,3 +53,7 @@ jobs:
       - name: Tests
         working-directory: reference/ai-sdlc-orchestrator
         run: npm test
+
+      - name: Build
+        working-directory: reference/ai-sdlc-orchestrator
+        run: npm run build

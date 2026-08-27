@@ -37,7 +37,7 @@ jobs:
 
       - name: Install reference resolver dependencies
         working-directory: reference/context-resolver
-        run: npm install
+        run: npm ci
 
       - name: Typecheck
         working-directory: reference/context-resolver
@@ -46,3 +46,7 @@ jobs:
       - name: Tests
         working-directory: reference/context-resolver
         run: npm test
+
+      - name: Build
+        working-directory: reference/context-resolver
+        run: npm run build
