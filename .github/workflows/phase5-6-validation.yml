@@ -63,8 +63,11 @@ jobs:
         run: |
           docker compose up -d postgres phase5-project-automation phase6-hermes-governance
           for attempt in $(seq 1 30); do
-            if curl --fail --silent http://localhost:8085/healthz >/dev/null \
-              && curl --fail --silent http://localhost:8086/healthz >/dev/null; then
+            phase5_id="$(docker compose ps -q phase5-project-automation)"
+            phase6_id="$(docker compose ps -q phase6-hermes-governance)"
+            phase5_health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$phase5_id" 2>/dev/null || true)"
+            phase6_health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$phase6_id" 2>/dev/null || true)"
+            if [ "$phase5_health" = "healthy" ] && [ "$phase6_health" = "healthy" ]; then
               exit 0
             fi
             sleep 2
