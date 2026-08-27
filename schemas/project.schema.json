@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://engineering-governance.local/schemas/project.schema.json",
+  "title": "Engineering Governance Project Registry",
+  "type": "object",
+  "required": ["schema_version", "project", "ownership", "jira", "repository", "deployment", "ai"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "project": {
+      "type": "object",
+      "required": ["id", "name", "status", "domain"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Z][A-Z0-9_-]{1,30}$" },
+        "name": { "type": "string", "minLength": 2 },
+        "status": { "enum": ["active", "maintenance", "deprecated", "archived"] },
+        "domain": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
+    "ownership": {
+      "type": "object",
+      "required": ["team", "technical_owner"],
+      "properties": {
+        "team": { "type": "string", "minLength": 1 },
+        "technical_owner": { "type": "string", "minLength": 1 },
+        "business_owner": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "jira": {
+      "type": "object",
+      "required": ["project_key"],
+      "properties": {
+        "project_key": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
+    "repository": {
+      "type": "object",
+      "required": ["provider", "organization", "name", "default_branch"],
+      "properties": {
+        "provider": { "enum": ["github"] },
+        "organization": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "default_branch": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
+    "deployment": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["aws", "on_prem", "none"] },
+        "platform": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "ai": {
+      "type": "object",
+      "required": ["allow", "deny"],
+      "properties": {
+        "allow": { "type": "object" },
+        "deny": { "type": "object" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}
