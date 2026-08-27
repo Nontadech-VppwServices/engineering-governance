@@ -1,0 +1,111 @@
+schema_version: 1
+
+project:
+  id: PIM
+  name: Product Information Management
+  status: active
+  domain: product-information
+  pilot: true
+
+ownership:
+  team: engineering
+  technical_owner: unverified
+  business_owner: unverified
+
+jira:
+  project_key: PIM
+  project_name: Product Information Management
+  status: verified
+
+repository:
+  provider: github
+  organization: VespiarioThailand
+  name: product-information
+  default_branch: main
+  project_context: .ai/project.yaml
+
+architecture:
+  project_adr_location: docs/adr/
+  project_bdr_location: docs/bdr/
+  onboarding_inventory: docs/ai-governance/onboarding-inventory.md
+
+runtime:
+  authority: repository
+  language: typescript
+  framework: nextjs
+  node_version_source:
+    authority: repository
+    path: Dockerfile
+  application_version_source:
+    authority: repository
+    path: package.json
+
+contracts:
+  database:
+    authority: repository
+    engine: postgresql
+    schema_path: prisma/schema.prisma
+
+ci_cd:
+  authority: repository
+  uat_workflow: .github/workflows/uat.yml
+  production_workflow: .github/workflows/prod.yml
+  infrastructure_guidance: .github/instructions/ci-cd.instructions.md
+
+quality_gates:
+  authority: repository
+  security_audit: true
+  worker_unit_tests: true
+  e2e_tests: true
+  build: true
+
+deployment:
+  type: aws
+  platform: ecs_fargate
+  image_registry: ecr
+  region: ap-southeast-7
+  secrets_authority: aws_secrets_manager
+
+environments:
+  dev:
+    branch: dev
+    deployment_status: unverified
+  uat:
+    branch: uat
+    deployment_status: verified
+    trigger: push
+  prod:
+    branch: main
+    deployment_status: verified
+    trigger: tag
+    tag_pattern: prod-*
+
+ai:
+  allow:
+    read: true
+    create_branch: true
+    commit: true
+    push: true
+    create_pr: true
+    propose_adr: true
+    propose_bdr: true
+  deny:
+    merge: true
+    production_deploy: true
+    production_credentials: true
+    accept_adr: true
+    accept_bdr: true
+
+unresolved:
+  - technical_owner
+  - business_owner
+  - dev_deployment_mapping
+
+verification:
+  jira: verified
+  repository: verified
+  runtime: verified
+  database: verified
+  uat_deployment: verified
+  production_deployment: verified
+  dev_deployment: unverified
