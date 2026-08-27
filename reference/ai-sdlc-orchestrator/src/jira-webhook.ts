@@ -49,7 +49,8 @@ export function normalizeJiraWebhook(
   const issue = value.issue;
   if (!issue?.key || !issue.fields) throw new Error('Jira webhook issue key/fields are required.');
 
-  const projectKey = issue.fields.project?.key ?? issue.key.split('-')[0];
+  const projectKey = issue.fields.project?.key ?? issue.key.split('-')[0] ?? '';
+  if (!projectKey) throw new Error('Jira webhook project key is required.');
   if (config.allowedProjectKeys?.length && !config.allowedProjectKeys.includes(projectKey)) return null;
 
   const assigneeId = issue.fields.assignee?.accountId ?? null;
