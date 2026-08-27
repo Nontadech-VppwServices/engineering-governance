@@ -45,13 +45,16 @@ export interface GitHostPort {
   }): Promise<PullRequestRef>;
 }
 
+export interface JiraIssueSnapshot {
+  issueKey: string;
+  summary: string;
+  status?: string | null;
+  issueType?: string | null;
+  projectKey?: string | null;
+}
+
 export interface JiraSyncPort {
-  getIssue(issueKey: string): Promise<{
-    issueKey: string;
-    summary: string;
-    status?: string | null;
-    issueType?: string | null;
-  }>;
+  getIssue(issueKey: string): Promise<JiraIssueSnapshot>;
   sync(input: {
     issueKey: string;
     job: AiSdlcJob;
