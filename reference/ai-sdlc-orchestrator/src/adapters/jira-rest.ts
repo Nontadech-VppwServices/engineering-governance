@@ -5,6 +5,8 @@ export interface JiraRestAdapterConfig {
   baseUrl: string;
   authorization: string;
   statusNamesByCanonicalState?: Partial<Record<JobState, string>>;
+  statusNamesByProject?: Record<string, Partial<Record<JobState, string>>>;
+  strictTransitions?: boolean;
 }
 
 export class JiraRestAdapter implements JiraSyncPort {
@@ -14,18 +16,24 @@ export class JiraRestAdapter implements JiraSyncPort {
   ) {}
 
   async getIssue(issueKey: string) {
-    const url = `${this.config.baseUrl.replace(/\/$/, '')}/rest/api/3/issue/${encodeURIComponent(issueKey)}?fields=summary,status,issuetype`;
+    const url = `${this.config.baseUrl.replace(/\/$/, '')}/rest/api/3/issue/${encodeURIComponent(issueKey)}?fields=summary,status,issuetype,project`;
     const response = await this.fetchImpl(url, { headers: this.headers() });
     if (!response.ok) throw new Error(`Jira get issue failed with HTTP ${response.status}.`);
     const data = await response.json() as {
       key: string;
-      fields: { summary: string; status?: { name?: string }; issuetype?: { name?: string } };
+      fields: {
+        summary: string;
+        status?: { name?: string };
+        issuetype?: { name?: string };
+        project?: { key?: string };
+      };
     };
     return {
       issueKey: data.key,
       summary: data.fields.summary,
       status: data.fields.status?.name ?? null,
       issueType: data.fields.issuetype?.name ?? null,
+      projectKey: data.fields.project?.key ?? null,
     };
   }
 
@@ -36,18 +44,23 @@ export class JiraRestAdapter implements JiraSyncPort {
     desiredCanonicalState?: JobState;
   }): Promise<void> {
     await this.addComment(input.issueKey, input.message, input.job);
-
-    const desiredStatus = input.desiredCanonicalState
-      ? this.config.statusNamesByCanonicalState?.[input.desiredCanonicalState]
-      : undefined;
-    if (!desiredStatus) return;
+    if (!input.desiredCanonicalState) return;
 
     const current = await this.getIssue(input.issueKey);
+    const projectMapping = current.projectKey
+      ? this.config.statusNamesByProject?.[current.projectKey]
+      : undefined;
+    const desiredStatus = projectMapping?.[input.desiredCanonicalState]
+      ?? this.config.statusNamesByCanonicalState?.[input.desiredCanonicalState];
+    if (!desiredStatus) return;
     if (current.status?.toLowerCase() === desiredStatus.toLowerCase()) return;
 
     const transitionId = await this.findTransitionToStatus(input.issueKey, desiredStatus);
     if (!transitionId) {
-      throw new Error(`Jira has no available transition to status '${desiredStatus}' for ${input.issueKey}.`);
+      if (this.config.strictTransitions) {
+        throw new Error(`Jira has no available transition to status '${desiredStatus}' for ${input.issueKey}.`);
+      }
+      return;
     }
 
     const response = await this.fetchImpl(
@@ -58,7 +71,7 @@ export class JiraRestAdapter implements JiraSyncPort {
         body: JSON.stringify({ transition: { id: transitionId } }),
       },
     );
-    if (!response.ok && response.status !== 409) {
+    if (!response.ok && response.status !== 409 && this.config.strictTransitions) {
       throw new Error(`Jira transition failed with HTTP ${response.status}.`);
     }
   }
@@ -68,7 +81,12 @@ export class JiraRestAdapter implements JiraSyncPort {
       `${this.config.baseUrl.replace(/\/$/, '')}/rest/api/3/issue/${encodeURIComponent(issueKey)}/transitions?expand=transitions.fields`,
       { headers: this.headers() },
     );
-    if (!response.ok) throw new Error(`Jira transition lookup failed with HTTP ${response.status}.`);
+    if (!response.ok) {
+      if (this.config.strictTransitions) {
+        throw new Error(`Jira transition lookup failed with HTTP ${response.status}.`);
+      }
+      return null;
+    }
     const data = await response.json() as {
       transitions?: Array<{ id: string; to?: { name?: string } }>;
     };
