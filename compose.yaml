@@ -198,7 +198,7 @@ services:
     image: ${HERMES_IMAGE:-nousresearch/hermes-agent@sha256:071a7e5e6787156d1469ad04088cdbc0ce3db25d2727cb5a4e3958e3c57aa8f7}
     command: gateway run
     environment: { API_SERVER_ENABLED: "true", API_SERVER_HOST: "0.0.0.0", API_SERVER_KEY: "${HERMES_CODER_API_KEY:?required}", OPENAI_API_KEY: "${OPENAI_API_KEY:-}", OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}", ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}" }
-    volumes: ["hermes-coder-data:/opt/data", "./hermes/skills/engineering-governance:/opt/data/skills/engineering-governance:ro", "generated-skills:/opt/data/skills/generated:ro", "agent-workspaces:/workspaces"]
+    volumes: ["hermes-coder-data:/opt/data", "./hermes/skills/engineering-governance:/opt/data/skills/engineering-governance:ro", "./hermes/skills/ai-sdlc-execution:/opt/data/skills/ai-sdlc-execution:ro", "generated-skills:/opt/data/skills/generated:ro", "agent-workspaces:/workspaces"]
     depends_on: { hermes-data-init: { condition: service_completed_successfully } }
     healthcheck: { test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8642/health"], interval: 15s, timeout: 5s, retries: 12 }
 
