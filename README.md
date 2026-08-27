@@ -67,17 +67,37 @@ Verified Jira mappings:
 - `PIM` → Jira `PIM` — Product Information Management
 - `TMS_BACKEND` → Jira `TMS` — Transport Management System
 
-A Jira project `RPA` exists, but individual RPA repositories remain unmapped until repository/issue-level evidence confirms each relationship.
-
 Important configuration drift discovered:
 
 - `TMS_BACKEND` production workflow references Product Information deployment resource names and PIM environment URL; the registry records this as high-severity deployment configuration drift pending verification/correction.
 
-Business-context onboarding rule:
+### Phase 2.3 — Jira Repository Routing — Complete
 
-- Jira remains authoritative for live ticket status, assignee, priority, sprint and current acceptance progress.
-- `docs/business/` stores stable domain knowledge, terminology, rules, actors and flows.
-- AI-created scaffolds remain `pending_human_review`; AI must not invent business rules.
+Accepted routing architecture:
+
+- `decisions/adr/global/ADR-GLOBAL-003-jira-repository-routing.md`
+- `policies/jira-repository-routing.md`
+- `schemas/jira-routing.schema.json`
+- `ssot/jira-routing/README.md`
+- `ssot/jira-routing/RPA.yaml`
+
+Routing rules:
+
+- application Jira projects that may span frontend/backend/CMS/service repositories use **AI repository discovery**; end users are not required to know whether a defect is frontend or backend;
+- Jira project `RPA` requires a **Component** selected from the approved dropdown keys;
+- RPA Component → repository mapping is deterministic, but AI still validates the issue content against the selected component;
+- one Jira issue may impact multiple repositories;
+- `routing_conflict`, `unmapped_component`, and unresolved routing block code modification.
+
+Approved RPA Jira Component keys:
+
+- `D365_SALES_ORDER`
+- `D365_CREDIT_NOTE`
+- `AP_PO_INVOICE`
+- `D365_RETAIL_ECOMMERCE_EXPORT`
+- `D365_INVOICE_EXPORT`
+- `PDF_SIGNER`
+- `SHAREPOINT_EXCEL_EXTRACTOR`
 
 ## Organization default project archetypes
 
@@ -119,6 +139,8 @@ Phase 2.1  Organization project inventory             COMPLETE
    ↓
 Phase 2.2  Compliance + business-context onboarding   COMPLETE
    ↓
+Phase 2.3  Jira repository routing                    COMPLETE
+   ↓
 Phase 3    Effective Context Resolver
    ↓
 Phase 4    Jira → AI → Git → PR workflow
@@ -145,4 +167,4 @@ When documentation, AI memory, cached data, and authoritative systems disagree, 
 
 ## Next step
 
-Build Phase 3 — Effective Context Resolver. It should resolve project registry data, organization policies, applicable ADR/BDR records, project-local `.ai` metadata, `docs/business/` context, live Jira issue context, repository truth pointers, compliance gaps, project archetype, reporting requirements, and unresolved/conflict flags into one effective project context for AI agents.
+Build Phase 3 — Effective Context Resolver. It should resolve project registry data, organization policies, applicable ADR/BDR records, Jira repository routing, project-local `.ai` metadata, `docs/business/` context, live Jira issue context, repository truth pointers, compliance gaps, project archetype, reporting requirements, and unresolved/conflict flags into one effective project context for AI agents.

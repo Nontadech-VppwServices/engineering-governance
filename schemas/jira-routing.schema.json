@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vespiario.local/schemas/jira-routing.schema.json",
+  "title": "Jira Repository Routing",
+  "type": "object",
+  "required": ["schema_version", "jira", "components", "rules"],
+  "properties": {
+    "schema_version": { "type": "integer", "minimum": 1 },
+    "jira": {
+      "type": "object",
+      "required": ["project_key", "routing_mode"],
+      "properties": {
+        "project_key": { "type": "string", "minLength": 1 },
+        "project_name": { "type": ["string", "null"] },
+        "routing_mode": {
+          "type": "string",
+          "enum": ["required_component", "ai_auto_discovery", "hybrid"]
+        },
+        "component_field_required": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["label", "repository", "status"],
+        "properties": {
+          "label": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" },
+          "repository": { "type": "string", "pattern": "^[^/]+/[^/]+$" },
+          "repository_role": {
+            "type": "string",
+            "enum": ["primary", "secondary", "test_only", "dependency"]
+          },
+          "status": { "type": "string", "enum": ["active", "deprecated"] }
+        },
+        "additionalProperties": true
+      }
+    },
+    "rules": {
+      "type": "object",
+      "required": ["allow_silent_repository_switch"],
+      "properties": {
+        "validate_issue_against_component": { "type": "boolean" },
+        "conflict_status": { "type": "string" },
+        "unknown_component_status": { "type": "string" },
+        "allow_silent_repository_switch": { "const": false },
+        "allow_multi_repo_after_analysis": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "jira_dropdown_values": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    }
+  },
+  "additionalProperties": true
+}
