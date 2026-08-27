@@ -24,20 +24,25 @@ runtime:
 deployment:
   type: aws
   status: verified
-  verification_source: owner_confirmation
-  platform: unknown
+  verification_source: repository_workflow_and_owner_confirmation
+  platform: ecs
   packaging: docker
+  development_workflow: .github/workflows/ci.yml
+  production_workflow: .github/workflows/prod-deploy.yml
 testing:
   policy: policies/testing.md
   api_required: true
   e2e_required: true
-  observed: {api: unverified, e2e: unverified}
-  compliance_status: unverified
+  observed:
+    api: not_in_production_gate
+    e2e: not_in_production_gate
+  compliance_status: non_compliant
+  evidence: compliance/phase-2.2.md
 business_context:
   policy: policies/business-context.md
   repository_location: docs/business/
-  status: not_onboarded
+  status: scaffolded_pending_human_review
 ai:
   allow: {read: true, create_branch: true, commit: true, create_pr: true}
   deny: {merge: true, production_deploy: true, production_credentials: true}
-unresolved: [technical_owner, business_owner, jira_mapping, aws_platform, api_test_compliance, e2e_test_compliance]
+unresolved: [technical_owner, business_owner, jira_mapping, api_test_gate, e2e_test_gate]
