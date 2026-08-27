@@ -27,12 +27,12 @@ It is designed to become the governance foundation for an AI-assisted SDLC acros
 
 Governance foundations:
 
-- `ssot/authority-map.yaml` — identifies the authoritative source for each information type.
-- `ssot/precedence.yaml` — defines how conflicts between sources are resolved.
+- `ssot/authority-map.yaml` — authoritative-source map.
+- `ssot/precedence.yaml` — conflict/precedence rules.
 
 ### Phase 1 — Complete
 
-Project registry and governance standards:
+Governance standards:
 
 - `ssot/projects/` — central project registry.
 - `templates/PROJECT.yaml` — project registry template.
@@ -51,31 +51,41 @@ Project registry and governance standards:
 - `schemas/adr.schema.json` — ADR metadata schema.
 - `schemas/bdr.schema.json` — BDR metadata schema.
 
-### Phase 2 — Pilot onboarding complete
+### Phase 2 — Complete
 
-Pilot project:
+Pilot project: `PIM` — Product Information Management
 
-- `RPA_D365_RETAIL_ECOMMERCE_EXPORT`
-- Registry: `ssot/projects/RPA_D365_RETAIL_ECOMMERCE_EXPORT.yaml`
-- Inventory: `onboarding/RPA_D365_RETAIL_ECOMMERCE_EXPORT/inventory.md`
+Central artifacts:
+
+- Registry: `ssot/projects/PIM.yaml`
+- Inventory: `onboarding/PIM/inventory.md`
+
+Project-local artifacts in `VespiarioThailand/product-information`:
+
+- `.ai/project.yaml`
+- `docs/ai-governance/onboarding-inventory.md`
+- `docs/adr/README.md`
+- `docs/bdr/README.md`
 
 Verified during onboarding:
 
-- repository and default branch
-- Node.js/TypeScript runtime contract
-- Playwright automation dependency
-- Docker/Docker Compose execution model
-- scheduler/manual execution modes
-- repository quality gates
-- critical AI-facing requirement/architecture documents
+- Jira project key `PIM` and Product Information Management project identity.
+- Git repository `VespiarioThailand/product-information` and default branch `main`.
+- TypeScript / Next.js / Node.js container runtime.
+- Prisma + PostgreSQL database contract.
+- Docker multi-stage application build.
+- GitHub Actions CI/CD.
+- UAT: branch `uat` -> quality/security gates -> ECR -> ECS.
+- Production: `prod-*` tag -> quality/security gates -> ECR -> ECS.
+- AWS ECS/Fargate deployment architecture in `ap-southeast-7`.
+- AWS Secrets Manager as runtime secret source.
+- Security audit, worker tests, build, and Playwright E2E quality gates.
 
 Explicitly unresolved rather than guessed:
 
-- Jira project key
-- technical/business ownership
-- actual deployment location
-- environment-to-branch mapping
-- CI/CD deployment workflow
+- technical owner
+- business owner
+- DEV deployment mapping
 
 No implementation fact was automatically promoted to an Accepted ADR. Architecture candidates require human review before they become authoritative decisions.
 
@@ -86,7 +96,7 @@ Phase 0  Governance foundation                         COMPLETE
    ↓
 Phase 1  Project registry + ADR/BDR standards         COMPLETE
    ↓
-Phase 2  Pilot project onboarding                     COMPLETE (with unresolved mappings)
+Phase 2  PIM pilot onboarding                         COMPLETE
    ↓
 Phase 3  Effective Context Resolver
    ↓
@@ -103,4 +113,4 @@ When documentation, AI memory, cached data, and authoritative systems disagree, 
 
 ## Next step
 
-Build Phase 3 Effective Context Resolver so any AI agent can request one resolved project context containing registry data, policies, applicable ADR/BDR records, repository truth pointers, approved exceptions, and unresolved/conflict flags.
+Build Phase 3 Effective Context Resolver using `PIM` as the first project. The resolver should combine the central registry, applicable policies and decisions, project-local `.ai/project.yaml`, repository truth pointers, approved exceptions, and unresolved/conflict flags into one effective context response.
