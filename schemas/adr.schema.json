@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://engineering-governance.local/schemas/adr.schema.json",
+  "title": "Architecture Decision Record Metadata",
+  "type": "object",
+  "required": ["id", "title", "status", "scope", "date", "owners"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^ADR-[A-Z0-9_-]+-[0-9]{3,}$" },
+    "title": { "type": "string", "minLength": 3 },
+    "status": { "enum": ["draft", "proposed", "accepted", "rejected", "superseded", "deprecated"] },
+    "scope": { "enum": ["global", "domain", "project"] },
+    "domain": { "type": ["string", "null"] },
+    "project": { "type": ["string", "null"] },
+    "date": { "type": "string", "format": "date" },
+    "owners": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "supersedes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "superseded_by": { "type": ["string", "null"] },
+    "related_bdr": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "related_jira": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": true
+}
