@@ -13,6 +13,7 @@ ownership:
 jira:
   status: unmapped
   project_key: null
+  candidate_project_key: RPA
 repository:
   provider: github
   organization: VespiarioThailand
@@ -25,19 +26,25 @@ runtime:
 deployment:
   type: on_prem
   status: verified
-  verification_source: owner_confirmation
+  verification_source: repository_and_owner_confirmation
   platform: server
   packaging: docker_compose
 testing:
   policy: policies/testing.md
   profile: rpa
   workflow_test_required: true
-  compliance_status: unverified
+  observed:
+    unit: vitest
+    lint: true
+    typecheck: true
+    production_gate: not_verified
+  compliance_status: partial_gap
+  evidence: compliance/phase-2.2.md
 business_context:
   policy: policies/business-context.md
   repository_location: docs/business/
-  status: not_onboarded
+  status: scaffolded_pending_human_review
 ai:
   allow: {read: true, create_branch: true, commit: true, create_pr: true}
   deny: {merge: true, production_deploy: true, production_credentials: true}
-unresolved: [technical_owner, business_owner, jira_mapping, on_prem_deployment_mechanism, test_gate_compliance]
+unresolved: [technical_owner, business_owner, jira_mapping, controlled_workflow_test, production_test_gate]
