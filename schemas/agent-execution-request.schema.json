@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vespiario.internal/schemas/agent-execution-request.schema.json",
+  "title": "Agent Execution Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "job_id", "jira_issue_key", "work_type", "repository", "base_branch", "working_branch", "effective_context"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "job_id": { "type": "string", "minLength": 1 },
+    "jira_issue_key": { "type": "string" },
+    "work_type": { "enum": ["bug", "new_module", "analysis"] },
+    "repository": { "type": "string" },
+    "base_branch": { "type": "string" },
+    "working_branch": { "type": "string" },
+    "effective_context": { "type": "object" },
+    "constraints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allow_merge": { "const": false },
+        "allow_production_deploy": { "const": false },
+        "allow_production_credentials": { "const": false }
+      }
+    }
+  }
+}
