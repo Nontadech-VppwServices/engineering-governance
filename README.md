@@ -199,7 +199,7 @@ Accepted architecture:
 - `policies/hermes-execution-plane.md`
 - `hermes/skills/ai-sdlc-execution/SKILL.md`
 
-The runtime now explicitly separates:
+The runtime explicitly separates deterministic control from model reasoning:
 
 ```text
 AI SDLC Control Plane
@@ -224,17 +224,56 @@ Trusted Agent Runner
 Pull Request
 ```
 
-Changes from the prior Phase 4 implementation:
+Hermes is the default **AI reasoning/execution plane**, but never the authoritative control plane or source of truth.
 
-- analysis-only work now invokes Hermes against the governed repository instead of generating a placeholder summary;
-- New Module planning now invokes Hermes in a read-only planning phase before human approval;
-- implementation continues through Hermes but Git/test authority remains in the trusted Agent Runner;
-- read-only Analyze/Plan phases are independently checked for unexpected file modifications;
-- Agent results can retain `execution_phase`, `hermes_run_id`, sanitized execution artifact output, changed files and trusted quality-gate evidence;
-- Hermes Coder mounts both the `engineering-governance` and `ai-sdlc-execution` skills read-only;
-- Hermes still has no Jira/GitHub write credentials or production credentials.
+### Phase 4.2 — AI SDLC MCP Tool Boundary — Complete
 
-Hermes is therefore the default **AI reasoning/execution plane**, but never the authoritative control plane or source of truth.
+Accepted architecture and policy:
+
+- `decisions/adr/global/ADR-GLOBAL-009-ai-sdlc-mcp-tool-boundary.md`
+- `policies/ai-sdlc-mcp.md`
+- `policies/hermes-execution-plane.md`
+- `ssot/mcp/ai-sdlc-tools.yaml`
+- `schemas/ai-sdlc-mcp-scope.schema.json`
+
+Reference implementation:
+
+- `reference/ai-sdlc-mcp/`
+- MCP TypeScript SDK v2 server factory
+- immutable job-scoped execution scope
+- Effective Context/Jira read tools
+- scoped repository search/read tools
+- named quality-gate tool with no arbitrary shell command
+- controlled branch/commit/push/PR requests backed by trusted ports
+- trusted quality verdict required before commit/push/PR
+- scoped sanitized Jira comment tool
+- repository/path/phase/branch guards
+- hard no-merge/no-production/no-production-secret authority
+- regression tests and `.github/workflows/ai-sdlc-mcp-validation.yml`
+
+The standard Hermes integration path is now:
+
+```text
+Jira / GitHub
+     ↓
+AI SDLC Control Plane
+     ↓ immutable scope / approvals
+Trusted Agent Runner
+     ↓
+Hermes Execution Plane
+     ↓ native MCP client
+AI SDLC MCP Tool Boundary
+     ↓ server-side authorization
+Context / Jira / repository / quality gates / controlled Git requests
+     ↓
+Pull Request
+     ↓
+Human + GitHub Actions
+     ↓
+DEV / UAT / PROD
+```
+
+MCP is a capability facade that reduces provider/tool integration complexity. It does not replace the Control Plane, JobStore, Effective Context, Trusted Agent Runner or human production boundary.
 
 ### Phase 5 — Module / New Project Automation — Complete
 
@@ -326,33 +365,35 @@ RPA bots emit normalized run events to a central reporting service. The central 
 ## Planned evolution
 
 ```text
-Phase 0    Governance foundation                       COMPLETE
+Phase 0    Governance foundation                            COMPLETE
    ↓
-Phase 1    Registry + ADR/BDR standards               COMPLETE
+Phase 1    Registry + ADR/BDR standards                    COMPLETE
    ↓
-Phase 2    PIM pilot onboarding                       COMPLETE
+Phase 2    PIM pilot onboarding                            COMPLETE
    ↓
-Phase 2.1  Organization project inventory             COMPLETE
+Phase 2.1  Organization project inventory                  COMPLETE
    ↓
-Phase 2.2  Compliance + business-context onboarding   COMPLETE
+Phase 2.2  Compliance + business-context onboarding        COMPLETE
    ↓
-Phase 2.3  Jira repository routing                    COMPLETE
+Phase 2.3  Jira repository routing                         COMPLETE
    ↓
-Phase 3    Effective Context Resolver                  COMPLETE
+Phase 3    Effective Context Resolver                       COMPLETE
    ↓
-Phase 4    Jira → AI → Git → PR workflow              RUNTIME COMPLETE
+Phase 4    Jira → AI → Git → PR workflow                   RUNTIME COMPLETE
    ↓
-Phase 4.1  Hermes Execution Plane alignment           COMPLETE
+Phase 4.1  Hermes Execution Plane alignment                COMPLETE
    ↓
-Phase 5    Module / New Project automation             COMPLETE
+Phase 4.2  AI SDLC MCP Tool Boundary                       COMPLETE
    ↓
-Phase 6    Hermes Skills / Memory / continuous improvement  COMPLETE
+Phase 5    Module / New Project automation                  COMPLETE
+   ↓
+Phase 6    Hermes Skills / Memory / continuous improvement COMPLETE
 ```
 
 Production runtime:
 
 ```text
-Docker Compose
+Docker Compose / internal runtime
    ├── Context Resolver
    ├── Redis / BullMQ
    ├── PostgreSQL JobStore
@@ -361,10 +402,11 @@ Docker Compose
    ├── AI SDLC Control Plane
    ├── trusted Agent Runner
    ├── Hermes Execution Plane (Analyze / Plan / Implement)
+   ├── AI SDLC MCP Tool Boundary
    ├── LINE Workflow Control
    ├── central RPA reporting
    ├── Caddy HTTPS ingress
-   └── health / retry / dead-letter controls
+   └── health / retry / dead-letter / audit controls
 ```
 
 Central reporting:
@@ -384,4 +426,4 @@ When documentation, Hermes output/memory, cached data, and authoritative systems
 
 ## Next step
 
-Validate and activate the integrated runtime using non-production Jira/GitHub credentials and smoke evidence. Hermes should be configured as the default execution provider, while production merge/deployment and authoritative workflow decisions remain behind the deterministic control plane and human/policy gates.
+Validate and activate the integrated runtime using non-production Jira/GitHub credentials and smoke evidence. Hermes should be configured as the default execution provider with the governed AI SDLC MCP tool boundary, while production merge/deployment and authoritative workflow decisions remain behind the deterministic Control Plane and human/policy gates.
