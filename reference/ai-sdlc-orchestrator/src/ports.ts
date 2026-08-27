@@ -46,7 +46,12 @@ export interface GitHostPort {
 }
 
 export interface JiraSyncPort {
-  getIssue(issueKey: string): Promise<{ issueKey: string; summary: string; status?: string | null }>;
+  getIssue(issueKey: string): Promise<{
+    issueKey: string;
+    summary: string;
+    status?: string | null;
+    issueType?: string | null;
+  }>;
   sync(input: {
     issueKey: string;
     job: AiSdlcJob;
