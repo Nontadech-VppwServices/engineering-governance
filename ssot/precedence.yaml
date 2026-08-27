@@ -1,0 +1,126 @@
+schema_version: 1
+
+# Conflict-resolution rules for humans and AI agents.
+# The correct action is to surface conflicts when authority cannot be resolved safely.
+
+precedence:
+  governance:
+    order:
+      - security_policy
+      - organization_policy
+      - accepted_global_adr
+      - accepted_domain_adr
+      - accepted_project_adr
+      - approved_exception
+    notes:
+      - An approved exception overlays the applicable rule; it does not silently delete or rewrite the original decision.
+      - Proposed, draft, rejected, deprecated, or superseded decisions are not authoritative unless explicitly referenced for historical context.
+
+  implementation_state:
+    order:
+      - actual_runtime_state
+      - deployment_metadata
+      - version_controlled_deployment_configuration
+      - repository_configuration
+      - documentation
+    notes:
+      - Runtime state answers what is actually running now.
+      - Repository and ADRs answer what should be implemented.
+      - A mismatch between approved architecture and implementation must be reported as architecture drift.
+
+  work_management:
+    order:
+      - jira_current_state
+      - linked_documentation
+      - generated_summary
+      - ai_memory
+
+  source_code:
+    order:
+      - project_repository_default_or_target_branch
+      - linked_code_documentation
+      - generated_summary
+      - ai_memory
+
+  business_decisions:
+    order:
+      - accepted_bdr
+      - approved_product_spec
+      - jira_context
+      - generated_summary
+      - ai_memory
+
+  architecture_decisions:
+    order:
+      - accepted_global_adr
+      - accepted_domain_adr
+      - accepted_project_adr
+      - approved_exception
+      - current_repository_implementation
+      - generated_documentation
+      - ai_memory
+    conflict_behavior:
+      approved_decision_vs_repository: report_architecture_drift
+      incompatible_accepted_decisions: stop_and_request_governance_review
+
+ai_rules:
+  memory_is_authoritative: false
+  generated_content_is_authoritative: false
+  embeddings_are_authoritative: false
+  search_index_is_authoritative: false
+
+  must_verify_before_action:
+    - repository
+    - target_branch
+    - deployment_environment
+    - accepted_architecture_decisions
+    - applicable_security_policies
+
+  must_not_guess:
+    - project_repository_mapping
+    - production_credentials
+    - deployment_target
+    - accepted_exception
+    - business_approval
+    - architecture_approval
+
+  allowed_default_behavior_on_conflict: stop_and_report
+
+  write_governance:
+    allowed: propose_via_pull_request
+    direct_merge: false
+
+  write_adr:
+    allowed_status: proposed
+    direct_accept: false
+
+  write_bdr:
+    allowed_status: proposed
+    direct_accept: false
+
+  production:
+    direct_deploy: false
+    direct_secret_access: false
+    required_execution_path: ci_cd
+    human_approval_required: true
+
+conflict_types:
+  architecture_drift:
+    description: Approved architecture decision differs from current implementation.
+    action: report
+
+  documentation_drift:
+    description: Documentation differs from an authoritative implementation source.
+    action: report_and_use_authoritative_source
+
+  stale_ai_memory:
+    description: AI memory differs from any authoritative source.
+    action: ignore_memory_and_use_authoritative_source
+
+  unresolved_authority:
+    description: More than one candidate source exists and authority is not defined.
+    action: stop_and_request_governance_update
+
+  policy_violation:
+    description: Requested action conflicts with security or organization policy.
+    action: stop_and_report
