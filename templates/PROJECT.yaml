@@ -1,0 +1,63 @@
+schema_version: 1
+
+project:
+  id: EXAMPLE
+  name: Example Project
+  status: active
+  domain: example
+
+ownership:
+  team: engineering
+  technical_owner: team-or-role
+  business_owner: team-or-role
+
+jira:
+  project_key: EXAMPLE
+
+repository:
+  provider: github
+  organization: your-org
+  name: your-repository
+  default_branch: main
+
+architecture:
+  project_adr_location: docs/adr/
+  project_bdr_location: docs/bdr/
+
+runtime:
+  type: node
+  version_source:
+    authority: repository
+    path: .nvmrc
+
+deployment:
+  type: aws # aws | on_prem | none
+  platform: ecs # example: ecs | docker | none
+
+environments:
+  dev:
+    branch: develop
+  uat:
+    branch: uat
+  prod:
+    branch: main
+
+contracts:
+  api:
+    authority: repository
+    path: openapi.yaml
+  database:
+    authority: repository
+    path: migrations/
+
+ai:
+  allow:
+    read: true
+    create_branch: true
+    commit: true
+    push: true
+    create_pr: true
+  deny:
+    merge: true
+    production_deploy: true
+    production_credentials: true
