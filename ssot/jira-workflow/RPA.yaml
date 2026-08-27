@@ -1,0 +1,21 @@
+schema_version: 1
+jira_project: RPA
+verified_at: 2026-08-27
+
+status_names_by_canonical_state:
+  ANALYZING: In Progress
+  CODING: In Progress
+  TESTING: QA
+  WAITING_REVIEW: REVIEW
+  DONE: Done
+
+verified_statuses:
+  - To Do
+  - In Progress
+  - QA
+  - REVIEW
+  - Done
+
+notes:
+  - Runtime resolves transition IDs dynamically from the current issue state.
+  - RPA Component routing remains mandatory before code modification.
