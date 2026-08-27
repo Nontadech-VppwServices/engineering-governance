@@ -1,0 +1,65 @@
+schema_version: 1
+organization: VespiarioThailand
+policies:
+  testing: policies/testing.md
+  business_context: policies/business-context.md
+
+aws_projects:
+  - project_id: WEBSITE_CUSTOMER_FRONTEND
+    repository: vespa-website-customer-frontend
+    type: web_frontend
+  - project_id: VESPISTIID_BACKEND
+    repository: vespistiid-backend
+    type: fullstack_backend_service
+  - project_id: VESPISTIID_PLATFORM
+    repository: vespistiid-platform
+    type: platform_fullstack
+  - project_id: WEBSITE_CMS
+    repository: vespa-website-cms
+    type: cms
+  - project_id: ECOMMERCE_CUSTOMER_FRONTEND
+    repository: vespa-ecommerce-customer-frontend
+    type: ecommerce_frontend
+  - project_id: ECOMMERCE_CMS
+    repository: vespa-ecommerce-cms
+    type: ecommerce_backend_cms
+  - project_id: TMS_BACKEND
+    repository: tms-backend
+    type: fullstack_backend_service
+
+on_prem_projects:
+  - project_id: RPA_D365
+    repository: RPA-D365
+    type: rpa
+  - project_id: RPA
+    repository: RPA
+    type: rpa
+  - project_id: RPA_AP_PO_INVOICE
+    repository: rpa-ap-po-invoice
+    type: rpa
+  - project_id: PDF_SIGNER
+    repository: PDFSigner
+    type: document_automation
+  - project_id: RPA_D365_RETAIL_ECOMMERCE_EXPORT
+    repository: rpa-d365-retail-ecommerce-export
+    type: rpa_export
+  - project_id: RPA_D365_INVOICE_EXPORT
+    repository: rpa-d365-invoice-export
+    type: rpa_export
+
+existing_pilot:
+  project_id: PIM
+  repository: product-information
+
+quality_rules:
+  aws_minimum:
+    api_test: mandatory
+    e2e_test: mandatory
+    production_block_on_failure: true
+  on_prem:
+    automation_appropriate_tests: mandatory
+
+notes:
+  - Deployment group membership is verified from organization-owner confirmation.
+  - Exact AWS service/platform remains project-specific unless verified from repository/IaC/workflows.
+  - Jira mappings, ownership, environment mappings, and CI test compliance remain unresolved where not verified.
