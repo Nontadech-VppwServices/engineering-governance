@@ -10,7 +10,7 @@
       "type": "object",
       "required": ["id", "name", "status", "domain"],
       "properties": {
-        "id": { "type": "string", "pattern": "^[A-Z][A-Z0-9_-]{1,30}$" },
+        "id": { "type": "string", "pattern": "^[A-Z][A-Z0-9_-]{1,60}$" },
         "name": { "type": "string", "minLength": 2 },
         "status": { "enum": ["active", "maintenance", "deprecated", "archived"] },
         "domain": { "type": "string", "minLength": 1 }
@@ -21,17 +21,20 @@
       "type": "object",
       "required": ["team", "technical_owner"],
       "properties": {
-        "team": { "type": "string", "minLength": 1 },
-        "technical_owner": { "type": "string", "minLength": 1 },
-        "business_owner": { "type": ["string", "null"] }
+        "team": { "type": ["string", "null"] },
+        "technical_owner": { "type": ["string", "null"] },
+        "business_owner": { "type": ["string", "null"] },
+        "status": { "enum": ["verified", "unverified", "unassigned"] }
       },
       "additionalProperties": true
     },
     "jira": {
       "type": "object",
-      "required": ["project_key"],
+      "required": ["status", "project_key"],
       "properties": {
-        "project_key": { "type": "string", "minLength": 1 }
+        "status": { "enum": ["mapped", "unmapped", "not_applicable"] },
+        "project_key": { "type": ["string", "null"] },
+        "site": { "type": ["string", "null"] }
       },
       "additionalProperties": true
     },
@@ -48,9 +51,10 @@
     },
     "deployment": {
       "type": "object",
-      "required": ["type"],
+      "required": ["type", "status"],
       "properties": {
-        "type": { "enum": ["aws", "on_prem", "none"] },
+        "type": { "enum": ["aws", "on_prem", "none", "unknown"] },
+        "status": { "enum": ["verified", "unverified"] },
         "platform": { "type": ["string", "null"] }
       },
       "additionalProperties": true
