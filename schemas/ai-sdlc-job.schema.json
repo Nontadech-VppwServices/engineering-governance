@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vespiario.internal/schemas/ai-sdlc-job.schema.json",
+  "title": "AI SDLC Job",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "job_id", "jira_issue_key", "work_type", "state", "created_at", "updated_at", "repositories", "prs", "history"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "job_id": { "type": "string", "minLength": 1 },
+    "jira_issue_key": { "type": "string" },
+    "work_type": { "enum": ["bug", "new_module", "analysis"] },
+    "state": { "enum": ["RECEIVED", "RESOLVING_CONTEXT", "WAITING_INFORMATION", "ANALYZING", "PLANNING", "WAITING_PLAN_APPROVAL", "CODING", "TESTING", "CREATING_PR", "WAITING_REVIEW", "DONE", "FAILED", "CANCELLED"] },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "repositories": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "prs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["repository", "number", "url", "state", "merged"],
+        "properties": {
+          "repository": { "type": "string" },
+          "number": { "type": "integer", "minimum": 1 },
+          "url": { "type": "string" },
+          "state": { "enum": ["open", "closed"] },
+          "merged": { "type": "boolean" }
+        }
+      }
+    },
+    "blocking_reason": { "type": ["string", "null"] },
+    "history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["state", "entered_at", "actor"],
+        "properties": {
+          "state": { "type": "string" },
+          "entered_at": { "type": "string", "format": "date-time" },
+          "actor": { "enum": ["system", "ai", "human", "github", "jira"] },
+          "reason": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}
