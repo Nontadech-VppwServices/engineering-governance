@@ -4,6 +4,7 @@ export * from './state-machine.js';
 export * from './branch.js';
 export * from './quality.js';
 export * from './intake.js';
+export * from './jira-webhook.js';
 export * from './orchestrator.js';
 export * from './http.js';
 export * from './adapters/in-memory.js';
