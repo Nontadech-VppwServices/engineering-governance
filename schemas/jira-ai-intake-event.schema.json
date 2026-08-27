@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vespiario.internal/schemas/jira-ai-intake-event.schema.json",
+  "title": "Jira AI Intake Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "event_id", "occurred_at", "issue_key", "event_type"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "event_id": { "type": "string", "minLength": 1 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "issue_key": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+-[0-9]+$" },
+    "event_type": { "enum": ["issue_created", "issue_updated", "issue_assigned", "manual_trigger"] },
+    "work_type": { "type": ["string", "null"], "enum": ["bug", "new_module", "analysis", null] },
+    "component": { "type": ["string", "null"] },
+    "trigger_reason": { "type": ["string", "null"] }
+  }
+}
