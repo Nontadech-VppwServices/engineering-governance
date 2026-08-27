@@ -11,7 +11,7 @@ on:
       - 'schemas/agent-execution-result.schema.json'
       - 'policies/phase4-orchestration.md'
       - 'decisions/adr/global/ADR-GLOBAL-005-phase4-ai-sdlc-orchestration.md'
-      - 'ssot/jira-workflow/**'
+      - 'ssot/jira-workflows/**'
       - '.github/workflows/phase4-orchestrator-validation.yml'
   pull_request:
     paths:
@@ -20,7 +20,7 @@ on:
       - 'schemas/ai-sdlc-job.schema.json'
       - 'schemas/agent-execution-request.schema.json'
       - 'schemas/agent-execution-result.schema.json'
-      - 'ssot/jira-workflow/**'
+      - 'ssot/jira-workflows/**'
 
 permissions:
   contents: read
