@@ -3,6 +3,7 @@ import type { OrchestratorPorts } from './ports.js';
 import { evaluateQualityGates } from './quality.js';
 import { transitionJob } from './state-machine.js';
 import type {
+  AgentExecutionPhase,
   AgentExecutionResult,
   AiSdlcJob,
   EffectiveContextView,
@@ -56,7 +57,7 @@ export class AiSdlcOrchestrator {
         'system',
         context.decision.reason ?? blockingContextReason(context),
       );
-      await this.persistAndSync(job, 'AI SDLC is waiting for routing/governance information before code changes.');
+      await this.persistAndSync(job, 'AI SDLC is waiting for routing/governance information before AI execution.');
       return job;
     }
 
@@ -66,19 +67,27 @@ export class AiSdlcOrchestrator {
     await this.ports.jira.sync({
       issueKey: job.jira_issue_key,
       job,
-      message: `AI SDLC started analysis. Resolved ${job.repositories.length} repository target(s).`,
+      message: `Hermes analysis started for ${job.repositories.length} governed repository target(s).`,
       desiredCanonicalState: 'ANALYZING',
     });
 
+    const analysis = await this.runReadOnlyPhase(job, issue.summary, context, 'analyze');
+    job = analysis.job;
+    if (!analysis.ok) return job;
+
     if (workType === 'analysis') {
-      job = { ...job, artifacts: [...(job.artifacts ?? []), { kind: 'analysis', content: `Analysis completed for ${issue.summary}. Resolved repositories: ${job.repositories.join(', ') || 'none'}.`, created_at: new Date().toISOString() }] };
-      job = transitionJob(job, 'DONE', 'ai', 'Analysis-only request completed without repository modification.');
-      await this.persistAndSync(job, 'AI analysis completed. No code/PR was requested.');
+      job = transitionJob(job, 'DONE', 'ai', 'Hermes analysis-only execution completed without repository modification.');
+      await this.persistAndSync(job, 'Hermes analysis completed. No code/PR was requested.');
       return job;
     }
 
     if (!context.decision.can_modify_code || !context.decision.can_create_pr) {
-      job = transitionJob(job, 'WAITING_INFORMATION', 'system', context.decision.reason ?? 'Effective Context does not permit code modification.');
+      job = transitionJob(
+        job,
+        'WAITING_INFORMATION',
+        'system',
+        context.decision.reason ?? 'Effective Context does not permit code modification.',
+      );
       await this.persistAndSync(job, 'AI SDLC cannot modify code until Effective Context permits it.');
       return job;
     }
@@ -90,10 +99,21 @@ export class AiSdlcOrchestrator {
     }
 
     if (workType === 'new_module' && !event.plan_approved) {
-      job = transitionJob(job, 'PLANNING', 'ai');
-      job = { ...job, artifacts: [...(job.artifacts ?? []), { kind: 'plan', content: `Implement ${issue.summary} in ${job.repositories.join(', ')} after Phase 5 approval.`, created_at: new Date().toISOString() }] };
+      job = transitionJob(job, 'PLANNING', 'ai', 'Hermes is generating the implementation plan.');
+      await this.ports.jobs.save(job);
+      await this.ports.jira.sync({
+        issueKey: job.jira_issue_key,
+        job,
+        message: 'Hermes is generating a read-only implementation/test plan before human approval.',
+        desiredCanonicalState: 'PLANNING',
+      });
+
+      const planning = await this.runReadOnlyPhase(job, issue.summary, context, 'plan');
+      job = planning.job;
+      if (!planning.ok) return job;
+
       job = transitionJob(job, 'WAITING_PLAN_APPROVAL', 'system', 'New Module requires human plan approval before coding.');
-      await this.persistAndSync(job, 'Repository routing is resolved. New Module is waiting for human plan approval before coding.');
+      await this.persistAndSync(job, 'Hermes plan is ready. New Module is waiting for human plan approval before coding.');
       return job;
     }
 
@@ -170,6 +190,83 @@ export class AiSdlcOrchestrator {
     return job;
   }
 
+  private async runReadOnlyPhase(
+    startingJob: AiSdlcJob,
+    issueSummary: string,
+    context: EffectiveContextView,
+    phase: Extract<AgentExecutionPhase, 'analyze' | 'plan'>,
+  ): Promise<{ job: AiSdlcJob; ok: boolean }> {
+    let job = startingJob;
+    const outputs: string[] = [];
+
+    for (const routed of context.routing.repositories) {
+      const baseBranch = await this.ports.git.getDefaultBranch(routed.repository);
+      const result = await this.ports.agent.execute({
+        schema_version: 1,
+        job_id: job.job_id,
+        jira_issue_key: job.jira_issue_key,
+        work_type: job.work_type,
+        execution_phase: phase,
+        objective: issueSummary,
+        repository: routed.repository,
+        base_branch: baseBranch,
+        working_branch: baseBranch,
+        effective_context: context,
+        constraints: {
+          allow_merge: false,
+          allow_production_deploy: false,
+          allow_production_credentials: false,
+        },
+      });
+
+      if (result.status === 'blocked') {
+        job = transitionJob(
+          job,
+          'WAITING_INFORMATION',
+          'ai',
+          result.blocking_reason ?? `Hermes ${phase} execution blocked.`,
+        );
+        await this.persistAndSync(job, `Hermes ${phase} execution blocked in ${routed.repository}.`);
+        return { job, ok: false };
+      }
+
+      if (!['analysis_only', 'completed'].includes(result.status)) {
+        job = transitionJob(
+          job,
+          'FAILED',
+          'ai',
+          result.blocking_reason ?? `Hermes ${phase} execution ${result.status}.`,
+        );
+        await this.persistAndSync(job, `Hermes ${phase} execution failed in ${routed.repository}.`);
+        return { job, ok: false };
+      }
+
+      if (result.changed_files.length > 0) {
+        job = transitionJob(job, 'WAITING_INFORMATION', 'system', `Read-only ${phase} phase modified repository files.`);
+        await this.persistAndSync(job, `Read-only Hermes ${phase} contract was violated in ${routed.repository}.`);
+        return { job, ok: false };
+      }
+
+      outputs.push(formatExecutionArtifact(routed.repository, result));
+    }
+
+    const kind = phase === 'analyze' ? 'analysis' : 'plan';
+    job = {
+      ...job,
+      artifacts: [
+        ...(job.artifacts ?? []),
+        {
+          kind,
+          content: outputs.join('\n\n') || `Hermes ${phase} completed without textual output.`,
+          created_at: new Date().toISOString(),
+        },
+      ],
+      updated_at: new Date().toISOString(),
+    };
+    await this.ports.jobs.save(job);
+    return { job, ok: true };
+  }
+
   private async executeAndCreatePullRequests(
     startingJob: AiSdlcJob,
     issueSummary: string,
@@ -188,6 +285,8 @@ export class AiSdlcOrchestrator {
         job_id: job.job_id,
         jira_issue_key: job.jira_issue_key,
         work_type: job.work_type,
+        execution_phase: 'implement',
+        objective: issueSummary,
         repository: routed.repository,
         base_branch: baseBranch,
         working_branch: branch,
@@ -200,13 +299,13 @@ export class AiSdlcOrchestrator {
       });
 
       if (result.status === 'blocked') {
-        job = transitionJob(job, 'WAITING_INFORMATION', 'ai', result.blocking_reason ?? 'Agent execution blocked.');
-        await this.persistAndSync(job, `Agent execution blocked in ${routed.repository}.`);
+        job = transitionJob(job, 'WAITING_INFORMATION', 'ai', result.blocking_reason ?? 'Hermes implementation blocked.');
+        await this.persistAndSync(job, `Hermes implementation blocked in ${routed.repository}.`);
         return job;
       }
       if (result.status !== 'completed') {
-        job = transitionJob(job, 'FAILED', 'ai', result.blocking_reason ?? `Agent execution ${result.status}.`);
-        await this.persistAndSync(job, `Agent execution failed in ${routed.repository}.`);
+        job = transitionJob(job, 'FAILED', 'ai', result.blocking_reason ?? `Hermes implementation ${result.status}.`);
+        await this.persistAndSync(job, `Hermes implementation failed in ${routed.repository}.`);
         return job;
       }
 
@@ -218,7 +317,7 @@ export class AiSdlcOrchestrator {
     await this.ports.jira.sync({
       issueKey: job.jira_issue_key,
       job,
-      message: 'AI implementation completed. Required quality gates are being evaluated before PR creation.',
+      message: 'Hermes implementation completed. Trusted quality-gate evidence is being evaluated before PR creation.',
       desiredCanonicalState: 'TESTING',
     });
 
@@ -283,6 +382,14 @@ function blockingContextReason(context: EffectiveContextView): string {
     ?? `Repository routing status is ${context.routing.status}.`;
 }
 
+function formatExecutionArtifact(repository: string, result: AgentExecutionResult): string {
+  return [
+    `### ${repository}`,
+    result.hermes_run_id ? `Hermes run: ${result.hermes_run_id}` : 'Hermes run: unavailable',
+    result.artifact_content?.trim() || result.summary?.trim() || 'No textual artifact returned.',
+  ].join('\n');
+}
+
 function buildPullRequestBody(job: AiSdlcJob, result: AgentExecutionResult): string {
   const gates = result.quality_gates
     .map((gate) => `- ${gate.key}: ${gate.status}${gate.required ? ' (required)' : ''}`)
@@ -290,6 +397,7 @@ function buildPullRequestBody(job: AiSdlcJob, result: AgentExecutionResult): str
   return [
     `Jira: ${job.jira_issue_key}`,
     `AI SDLC Job: ${job.job_id}`,
+    result.hermes_run_id ? `Hermes run: ${result.hermes_run_id}` : null,
     '',
     '## Summary',
     result.summary ?? 'AI-assisted implementation.',
@@ -298,7 +406,9 @@ function buildPullRequestBody(job: AiSdlcJob, result: AgentExecutionResult): str
     gates || '- none reported',
     '',
     '## Guardrails',
+    '- Hermes edited files only inside the governed workspace.',
+    '- Trusted runner independently executed quality gates and Git commit/push.',
     '- AI did not merge this PR.',
     '- Production deployment remains controlled by CI/CD and human/policy gates.',
-  ].join('\n');
+  ].filter((line): line is string => line !== null).join('\n');
 }
