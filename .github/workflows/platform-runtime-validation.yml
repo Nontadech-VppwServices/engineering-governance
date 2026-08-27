@@ -2,9 +2,9 @@ name: Platform Runtime Validation
 on:
   push:
     branches: [main]
-    paths: ['reference/**','compose.yaml','Caddyfile','.env.example','hermes/**','schemas/**','.github/workflows/platform-runtime-validation.yml']
+    paths: ['reference/**','compose.yaml','Caddyfile','.env.example','hermes/**','schemas/**','policies/hermes-execution-plane.md','decisions/adr/global/ADR-GLOBAL-008-hermes-execution-plane.md','.github/workflows/platform-runtime-validation.yml']
   pull_request:
-    paths: ['reference/**','compose.yaml','Caddyfile','.env.example','hermes/**','schemas/**']
+    paths: ['reference/**','compose.yaml','Caddyfile','.env.example','hermes/**','schemas/**','policies/hermes-execution-plane.md','decisions/adr/global/ADR-GLOBAL-008-hermes-execution-plane.md']
 permissions: { contents: read }
 jobs:
   packages:
@@ -29,6 +29,10 @@ jobs:
       - uses: actions/checkout@v4
       - run: node -e "for(const f of require('fs').readdirSync('schemas').filter(x=>x.endsWith('.schema.json'))) JSON.parse(require('fs').readFileSync('schemas/'+f,'utf8'))"
       - run: cp .env.example .env && docker compose config --quiet
+      - name: Validate Hermes execution-plane wiring
+        run: |
+          test -f hermes/skills/ai-sdlc-execution/SKILL.md
+          docker compose config | grep -F '/opt/data/skills/ai-sdlc-execution'
       - run: docker compose build context-resolver phase4-ai-sdlc phase5-project-automation phase6-hermes-governance workflow-control agent-runner rpa-reporting reporting-worker hermes-line-delivery
       - name: Compose smoke test
         run: |
