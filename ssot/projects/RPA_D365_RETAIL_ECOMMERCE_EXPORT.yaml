@@ -1,0 +1,124 @@
+schema_version: 1
+
+project:
+  id: RPA_D365_RETAIL_ECOMMERCE_EXPORT
+  name: RPA D365 Retail Ecommerce Export
+  status: active
+  domain: rpa-d365
+
+ownership:
+  team: null
+  technical_owner: null
+  business_owner: null
+  status: unverified
+
+jira:
+  status: unmapped
+  project_key: null
+  site: https://dept-team-q5156pf8.atlassian.net
+  notes:
+    - Jira/Confluence connector search did not return a project or issue that can be reliably mapped to this repository.
+    - Do not infer a Jira project key from repository naming.
+
+repository:
+  provider: github
+  organization: Nontadech-VppwServices
+  name: rpa-d365-retail-ecommerce-export
+  default_branch: main
+
+architecture:
+  project_adr_location: docs/adr/
+  project_bdr_location: docs/bdr/
+  current_architecture_source:
+    authority: repository
+    path: docs/ai/architecture-and-requirement-traceability.md
+  business_login_requirement_source:
+    authority: repository
+    path: docs/ai/business-login-requirements.md
+
+runtime:
+  type: node
+  version_source:
+    authority: repository
+    path: package.json#engines.node
+  verified_constraint: ">=20"
+  language: typescript
+  automation: playwright
+
+execution:
+  scheduler:
+    type: cron
+    library: node-cron
+  modes:
+    - scheduled
+    - manual
+  container:
+    enabled: true
+    dockerfile: Dockerfile
+    compose: docker-compose.yml
+
+quality_gates:
+  authority: repository
+  commands:
+    build: npm run build
+    lint: npm run lint
+    typecheck: npm run typecheck
+    test: npm test
+
+deployment:
+  type: unknown
+  status: unverified
+  platform: docker
+  notes:
+    - Docker and Docker Compose runtime are verified from repository files.
+    - The actual host location (AWS vs on-prem) is not proven by the repository and must not be inferred.
+
+environments:
+  status: unverified
+  notes:
+    - No environment-to-branch mapping has been verified during Phase 2 onboarding.
+
+contracts:
+  master_filter:
+    authority: repository
+    path: SHARE_DRIVE_ROOT/Export_Filter_Master.xlsx
+  output_storage:
+    authority: repository
+    path_pattern: SHARE_DRIVE_ROOT/YYYY-MM-DD
+
+external_systems:
+  - name: Microsoft Dynamics 365
+    type: web_application
+  - name: shared_drive
+    type: mounted_filesystem
+
+ai:
+  allow:
+    read: true
+    analyze: true
+    create_branch: true
+    commit: true
+    push: true
+    create_pr: true
+  deny:
+    merge: true
+    production_deploy: true
+    production_credentials: true
+    bypass_tenant_security: true
+
+verification:
+  onboarded_at: 2026-08-27
+  evidence:
+    - README.md
+    - package.json
+    - Dockerfile
+    - docker-compose.yml
+    - docs/ai/architecture-and-requirement-traceability.md
+    - docs/ai/business-login-requirements.md
+  unresolved:
+    - jira_project_key
+    - technical_owner
+    - business_owner
+    - deployment_location
+    - environment_branch_mapping
+    - ci_cd_workflow
