@@ -1,0 +1,80 @@
+schema_version: 1
+
+purpose: >-
+  Project-aware Jira status destinations used by the Phase 4 AI SDLC orchestrator.
+  Jira itself remains authoritative for workflow state and available transitions.
+
+runtime_behavior:
+  transition_resolution: discover_available_transition_by_destination_status_name
+  hardcode_transition_ids: false
+  unavailable_transition: comment_only
+  strict_transition_failure: false
+
+projects:
+  PIM:
+    observed_statuses:
+      active: In Progress
+      review: Review
+      done: Done
+    mapping:
+      ANALYZING: In Progress
+      CODING: In Progress
+      TESTING: In Progress
+      CREATING_PR: Review
+      WAITING_REVIEW: Review
+      DONE: Done
+    verification: verified_from_live_jira
+
+  RPA:
+    observed_statuses:
+      active: In Progress
+      qa: QA
+      review: REVIEW
+      done: Done
+    mapping:
+      ANALYZING: In Progress
+      CODING: In Progress
+      TESTING: In Progress
+      WAITING_REVIEW: REVIEW
+      DONE: Done
+    note: >-
+      REVIEW and Done are valid RPA destinations, but the direct transition may not be
+      available from every current status. The runtime therefore performs best-effort
+      transition discovery and always preserves the Jira progress comment.
+    verification: verified_from_live_jira
+
+  TMS:
+    observed_statuses:
+      active: In Progress
+      review: QA
+      done: unverified
+    mapping:
+      ANALYZING: In Progress
+      CODING: In Progress
+      TESTING: In Progress
+      CREATING_PR: QA
+      WAITING_REVIEW: QA
+    unresolved:
+      - done_status_and_transition
+    verification: partially_verified_from_live_jira
+
+  VESPISTI:
+    observed_statuses:
+      active: In Progress
+      done: Done
+      review: unverified
+    mapping:
+      ANALYZING: In Progress
+      CODING: In Progress
+      TESTING: In Progress
+      DONE: Done
+    unresolved:
+      - review_status_and_transition
+    verification: partially_verified_from_live_jira
+
+rules:
+  - Internal AI SDLC Job State is independent from Jira workflow status.
+  - Jira status synchronization must never override the internal job state.
+  - Missing or unavailable Jira transitions must not cause an otherwise valid AI job to fail.
+  - Jira comments are required even when a status transition cannot currently be performed.
+  - New Jira projects must be verified before adding project-specific status mappings.
