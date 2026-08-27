@@ -11,8 +11,10 @@ ownership:
   business_owner: null
   status: unverified
 jira:
-  status: unmapped
-  project_key: null
+  status: mapped
+  project_key: VESPATH
+  project_name: Vespa Thailand
+  verification: verified
 repository:
   provider: github
   organization: VespiarioThailand

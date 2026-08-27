@@ -11,9 +11,10 @@ ownership:
   business_owner: null
   status: unverified
 jira:
-  status: unmapped
-  project_key: null
-  candidate_project_key: RPA
+  status: mapped
+  project_key: RPA
+  project_name: RPA
+  verification: verified
 repository:
   provider: github
   organization: VespiarioThailand
