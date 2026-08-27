@@ -56,8 +56,26 @@ quality_gates:
   authority: repository
   security_audit: true
   worker_unit_tests: true
+  api_tests: true
   e2e_tests: true
   build: true
+
+testing:
+  policy: policies/testing.md
+  api_required: true
+  e2e_required: true
+  observed:
+    api: production_blocking_playwright_project
+    e2e: production_blocking_playwright
+    worker_unit: production_blocking
+    security: production_blocking
+  compliance_status: compliant
+  evidence: compliance/phase-2.2.md
+
+business_context:
+  policy: policies/business-context.md
+  repository_location: docs/business/
+  status: scaffolded_pending_human_review
 
 deployment:
   type: aws
@@ -108,4 +126,5 @@ verification:
   database: verified
   uat_deployment: verified
   production_deployment: verified
+  test_compliance: verified
   dev_deployment: unverified
