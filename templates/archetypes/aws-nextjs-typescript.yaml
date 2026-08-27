@@ -1,0 +1,55 @@
+schema_version: 1
+archetype:
+  id: aws-nextjs-typescript
+  name: AWS Next.js TypeScript Application
+  status: active
+  decision: decisions/adr/global/ADR-GLOBAL-001-default-project-archetypes.md
+
+selection:
+  deployment_type: aws
+  project_types:
+    - website
+    - web_frontend
+    - fullstack_application
+    - backend_service
+
+stack:
+  language: typescript
+  runtime: node
+  framework: nextjs
+  packaging: docker
+
+ci_cd:
+  provider: github_actions
+  production_required_gates:
+    - api_test
+    - e2e_test
+  recommended_gates:
+    - lint
+    - typecheck
+    - unit_test
+    - integration_test
+    - security_audit
+    - build
+
+repository_baseline:
+  required_paths:
+    - docs/business/README.md
+    - docs/adr/README.md
+    - docs/bdr/README.md
+    - .ai/project.yaml
+  expected_capabilities:
+    - health_check
+    - structured_logging
+    - environment_validation
+    - automated_api_tests
+    - automated_e2e_tests
+
+deployment:
+  preferred_pattern: aws_containerized
+  image_registry: ecr
+  runtime_preference: ecs
+  secrets: approved_aws_secret_store
+
+exception:
+  requires_accepted_adr: true
