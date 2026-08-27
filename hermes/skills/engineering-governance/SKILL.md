@@ -1,14 +1,14 @@
 ---
 name: engineering-governance
-description: Apply Vespiario engineering authority, Phase 5 planning, and the Phase 6 governed learning loop before changing code, projects, memory, or skills.
-version: 1.1.0
+description: Apply Vespiario engineering authority, governed Hermes execution, Phase 5 planning, and the Phase 6 learning loop before changing code, projects, memory, or skills.
+version: 1.2.0
 author: Engineering Governance
 license: Proprietary
 platforms: [linux, macos]
 metadata:
   hermes:
     category: engineering
-    tags: [governance, ai-sdlc, memory, continuous-improvement]
+    tags: [governance, ai-sdlc, execution-plane, memory, continuous-improvement]
 ---
 
 # Engineering Governance
@@ -19,9 +19,23 @@ Use this skill for Jira-driven engineering, New Module/New Project work, and whe
 
 1. Resolve Effective Context before planning or modifying code.
 2. Follow `ssot/authority-map.yaml` and `ssot/precedence.yaml` in the mounted governance workspace.
-3. Treat Hermes memory, session search, generated summaries, embeddings, and generated skills as non-authoritative aids.
-4. If memory conflicts with Jira, Git, an accepted ADR/BDR, policy, deployment metadata, or runtime evidence, ignore the memory and report `stale_ai_memory`.
+3. Treat Hermes memory, session search, generated summaries, embeddings, execution artifacts, and generated skills as non-authoritative aids.
+4. If memory or Hermes output conflicts with Jira, Git, an accepted ADR/BDR, policy, deployment metadata, or runtime evidence, ignore the non-authoritative result and report the conflict.
 5. Never save credentials, tokens, private keys, cookies, unrestricted environment dumps, or customer-sensitive raw payloads to memory.
+
+## Hermes execution plane
+
+Hermes is the AI reasoning/execution plane, not the AI SDLC control plane.
+
+For a governed Agent Runner request, use the `ai-sdlc-execution` skill and follow the supplied execution phase:
+
+- `analyze`: inspect the assigned repository and return evidence-backed findings; do not modify files.
+- `plan`: return a scoped implementation/test plan; do not modify files and do not claim approval.
+- `implement`: edit only the assigned workspace for the approved/current objective; do not commit or push.
+
+The trusted Agent Runner owns workspace preparation, independent changed-file checks, required quality gates, Git commit/push and execution-result validation. The AI SDLC Control Plane owns job state, routing, approvals, Jira synchronization and PR/deployment boundaries.
+
+If the assigned repository appears wrong, return a routing-conflict candidate. Do not silently inspect or modify another repository. Never treat successful Hermes execution as permission to bypass a control-plane decision.
 
 ## Phase 5
 
