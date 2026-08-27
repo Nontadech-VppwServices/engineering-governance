@@ -1,0 +1,21 @@
+schema_version: 1
+jira_project: PIM
+verified_at: 2026-08-27
+
+status_names_by_canonical_state:
+  ANALYZING: In Progress
+  CODING: In Progress
+  TESTING: QA
+  WAITING_REVIEW: Review
+  DONE: Done
+
+verified_statuses:
+  - To Do
+  - In Progress
+  - QA
+  - Review
+  - Done
+
+notes:
+  - Runtime resolves transition IDs dynamically from the current issue state.
+  - Unmapped canonical states cause comment-only synchronization.
