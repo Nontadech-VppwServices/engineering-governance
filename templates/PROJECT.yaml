@@ -5,6 +5,8 @@ project:
   name: Example Project
   status: active
   domain: example
+  type: website
+  archetype: aws-nextjs-typescript
 
 ownership:
   team: engineering
@@ -12,6 +14,7 @@ ownership:
   business_owner: team-or-role
 
 jira:
+  status: mapped
   project_key: EXAMPLE
 
 repository:
@@ -24,6 +27,10 @@ architecture:
   project_adr_location: docs/adr/
   project_bdr_location: docs/bdr/
 
+business_context:
+  repository_location: docs/business/
+  status: pending_human_review
+
 runtime:
   type: node
   version_source:
@@ -31,8 +38,9 @@ runtime:
     path: .nvmrc
 
 deployment:
-  type: aws # aws | on_prem | none
-  platform: ecs # example: ecs | docker | none
+  type: aws # aws | on_prem | none | unknown
+  status: unverified
+  platform: ecs # example: ecs | docker | none | unknown
 
 environments:
   dev:
@@ -49,6 +57,20 @@ contracts:
   database:
     authority: repository
     path: migrations/
+
+testing:
+  policy: policies/testing.md
+  api_required: true
+  e2e_required: true
+  compliance_status: unverified
+
+reporting:
+  enabled: false
+  # For RPA archetype, set:
+  # enabled: true
+  # policy: policies/rpa-reporting.md
+  # event_schema: schemas/rpa-run-event.schema.json
+  # central_reporting_required: true
 
 ai:
   allow:
