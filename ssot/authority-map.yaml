@@ -1,0 +1,158 @@
+schema_version: 1
+
+# Defines the authoritative source for each information type.
+# This file answers: "Where must an AI or engineer go to verify the truth?"
+
+authorities:
+  project_registry:
+    authority: engineering_governance
+    location: ssot/projects/
+    owner: engineering
+    notes:
+      - Contains project identity and pointers to authoritative systems.
+      - Should not duplicate values that can be reliably read from the project repository or runtime.
+
+  project_ownership:
+    authority: engineering_governance
+    location: ssot/projects/
+    owner: engineering
+
+  work_item:
+    authority: jira
+    owner: engineering
+    includes:
+      - issue_key
+      - summary
+      - description
+      - acceptance_criteria
+      - assignee
+      - workflow_status
+      - priority
+
+  business_requirement:
+    authority: jira_or_product_spec
+    owner: product
+    notes:
+      - The project registry must identify the authoritative product-spec location when one exists.
+      - Jira remains authoritative for the implementation work item and its current workflow state.
+
+  business_decision:
+    authority: bdr
+    global_location: decisions/bdr/global/
+    domain_location: decisions/bdr/domain/
+    project_location: project_repository:docs/bdr/
+    owner: business
+    required_status_for_authority: accepted
+
+  global_architecture_decision:
+    authority: adr
+    location: decisions/adr/global/
+    owner: engineering
+    required_status_for_authority: accepted
+
+  domain_architecture_decision:
+    authority: adr
+    location: decisions/adr/domain/
+    owner: engineering
+    required_status_for_authority: accepted
+
+  project_architecture_decision:
+    authority: project_repository
+    location: docs/adr/
+    owner: project_team
+    required_status_for_authority: accepted
+
+  source_code:
+    authority: project_repository
+    owner: engineering
+
+  api_contract:
+    authority: project_repository
+    owner: engineering
+    common_sources:
+      - openapi.yaml
+      - openapi.json
+      - graphql/schema.graphql
+      - src/schema.graphql
+    notes:
+      - Exact source path is project-specific and should be registered per project.
+
+  database_schema:
+    authority: project_repository
+    owner: engineering
+    common_sources:
+      - migrations/
+      - prisma/schema.prisma
+      - db/schema/
+    notes:
+      - The project repository determines the actual migration/schema source.
+
+  runtime_version:
+    authority: project_repository
+    owner: engineering
+    common_sources:
+      - .nvmrc
+      - .node-version
+      - package.json
+      - Dockerfile
+      - go.mod
+    notes:
+      - Do not copy runtime versions into the central registry when they can be read from the repository.
+
+  ci_cd_definition:
+    authority: github_actions
+    location: project_repository:.github/workflows/
+    owner: engineering
+
+  deployment_configuration:
+    authority: project_repository_or_iac_repository
+    owner: engineering
+    notes:
+      - Deployment configuration should be version controlled.
+      - The project registry must point to the IaC repository when infrastructure is separated from application code.
+
+  deployed_version:
+    authority: deployment_runtime_and_ci_cd_metadata
+    owner: engineering
+    notes:
+      - Git history alone does not prove what is currently deployed.
+
+  production_secret:
+    authority: approved_secret_manager
+    owner: platform_or_engineering
+    prohibited_locations:
+      - project_repository
+      - engineering_governance
+      - ai_memory
+      - jira_comments
+
+  engineering_policy:
+    authority: engineering_governance
+    location: policies/
+    owner: engineering
+
+  ai_skill:
+    authority: approved_skill_repository
+    owner: engineering
+    notes:
+      - AI-generated skill changes must be reviewed before becoming authoritative for controlled workflows.
+
+  ai_memory:
+    authority: false
+    owner: none
+    notes:
+      - AI memory is contextual cache only.
+      - AI memory must never override an authoritative source.
+
+  generated_summary:
+    authority: false
+    owner: none
+    notes:
+      - Generated summaries may assist navigation but are not authoritative.
+
+  vector_index:
+    authority: false
+    owner: none
+    notes:
+      - Embeddings and vector databases are search indexes only.
+      - The original source must always be consulted for authoritative decisions.
