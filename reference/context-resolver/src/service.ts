@@ -70,53 +70,65 @@ export class ContextResolverService {
       jira: effectiveJira,
     });
 
+    const baseInput = {
+      requestId: request.request_id,
+      project,
+      jira: effectiveJira,
+      rpaRouting: rpaRouting ?? undefined,
+      discoveredRepositories,
+      repositoryFacts: [],
+      governance: governance.governance,
+      business: governance.business,
+      knownConflicts: governance.conflicts,
+      unresolved: governance.unresolved,
+      sources: [
+        {
+          id: `registry:${project.id}`,
+          type: 'project_registry',
+          authority: 'engineering_governance',
+          retrievedAt: new Date().toISOString(),
+        },
+        ...(effectiveJira
+          ? [
+              {
+                id: `jira:${effectiveJira.issueKey}`,
+                type: 'jira_issue',
+                authority: 'jira',
+                retrievedAt: effectiveJira.retrievedAt,
+              },
+            ]
+          : []),
+        {
+          id: 'governance:effective',
+          type: 'governance',
+          authority: 'engineering_governance',
+          retrievedAt: new Date().toISOString(),
+        },
+      ],
+    };
+
+    // First pass determines the authoritative route, including deterministic RPA Component mapping.
+    const preliminary = resolveEffectiveContext(baseInput);
+
     const repositoryFacts = await this.sources.repositoryFacts.inspect({
-      repositories: discoveredRepositories,
+      repositories: preliminary.routing.repositories,
       targetBranch: request.target_branch,
     });
 
     const sources = [
-      {
-        id: `registry:${project.id}`,
-        type: 'project_registry',
-        authority: 'engineering_governance',
-        retrievedAt: new Date().toISOString(),
-      },
-      ...(effectiveJira
-        ? [
-            {
-              id: `jira:${effectiveJira.issueKey}`,
-              type: 'jira_issue',
-              authority: 'jira',
-              retrievedAt: effectiveJira.retrievedAt,
-            },
-          ]
-        : []),
+      ...baseInput.sources,
       ...repositoryFacts.map((repo) => ({
         id: `github:${repo.repository}@${repo.targetBranch}`,
         type: 'repository',
         authority: 'github',
         retrievedAt: new Date().toISOString(),
       })),
-      {
-        id: 'governance:effective',
-        type: 'governance',
-        authority: 'engineering_governance',
-        retrievedAt: new Date().toISOString(),
-      },
     ];
 
+    // Final pass binds repository facts only after routing has been resolved.
     return resolveEffectiveContext({
-      requestId: request.request_id,
-      project,
-      jira: effectiveJira,
-      rpaRouting: rpaRouting ?? undefined,
-      discoveredRepositories,
+      ...baseInput,
       repositoryFacts,
-      governance: governance.governance,
-      business: governance.business,
-      knownConflicts: governance.conflicts,
-      unresolved: governance.unresolved,
       sources,
     });
   }
@@ -153,7 +165,6 @@ export class ContextResolverService {
 
     if (jira?.projectKey === 'RPA' && input.rpaRoutingAvailable) {
       // Deterministic Component routing is resolved inside resolveRouting().
-      // Repository facts are intentionally deferred until that route is known.
       return [];
     }
 
