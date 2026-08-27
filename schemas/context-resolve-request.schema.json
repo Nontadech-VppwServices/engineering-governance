@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vespiario.internal/schemas/context-resolve-request.schema.json",
+  "title": "Context Resolve Request",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "request_id": { "type": "string", "minLength": 1 },
+    "jira_issue_key": { "type": ["string", "null"], "pattern": "^[A-Z][A-Z0-9_]+-[0-9]+$" },
+    "project_id": { "type": ["string", "null"], "minLength": 1 },
+    "work_type": {
+      "type": ["string", "null"],
+      "enum": ["bug", "new_module", "new_project", "analysis", null]
+    },
+    "target_branch": { "type": ["string", "null"] },
+    "component": { "type": ["string", "null"] },
+    "repository_hints": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[^/]+/[^/]+$" },
+      "uniqueItems": true,
+      "default": []
+    },
+    "refresh": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "jira": { "type": "boolean", "default": true },
+        "repositories": { "type": "boolean", "default": true },
+        "governance": { "type": "boolean", "default": false }
+      },
+      "default": {}
+    }
+  },
+  "required": ["schema_version", "request_id"],
+  "anyOf": [
+    { "required": ["jira_issue_key"] },
+    { "required": ["project_id"] }
+  ]
+}
