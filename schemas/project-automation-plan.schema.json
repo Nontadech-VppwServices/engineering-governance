@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vespiario.internal/schemas/project-automation-plan.schema.json",
+  "title": "Project Automation Plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "plan_id", "request", "state", "archetype", "steps", "approvals", "history", "created_at", "updated_at"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "plan_id": { "type": "string", "minLength": 1 },
+    "request": { "$ref": "project-automation-request.schema.json" },
+    "state": { "enum": ["WAITING_PLAN_APPROVAL", "APPROVED", "EXECUTING", "COMPLETED", "BLOCKED", "FAILED"] },
+    "archetype": { "type": "string", "minLength": 1 },
+    "steps": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "approvals": { "type": "array", "items": { "type": "object" } },
+    "history": { "type": "array", "minItems": 1, "items": { "type": "object" } },
+    "output": { "type": ["object", "null"] },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}

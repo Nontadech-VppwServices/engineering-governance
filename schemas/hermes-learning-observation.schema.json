@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vespiario.internal/schemas/hermes-learning-observation.schema.json",
+  "title": "Hermes Learning Observation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "observation_id", "scope", "execution_ref", "outcome", "evidence", "suggested_action", "created_at"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "observation_id": { "type": "string", "minLength": 1 },
+    "scope": { "type": "string", "minLength": 1 },
+    "execution_ref": { "type": "string", "minLength": 1 },
+    "outcome": { "enum": ["success", "failure", "correction", "near_miss"] },
+    "evidence": { "type": "string", "minLength": 1, "maxLength": 20000 },
+    "suggested_action": { "type": "string", "minLength": 1, "maxLength": 10000 },
+    "created_at": { "type": "string", "format": "date-time" }
+  }
+}

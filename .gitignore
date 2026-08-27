@@ -1,0 +1,9 @@
+.env
+node_modules/
+dist/
+coverage/
+.runtime/
+generated-projects/
+generated-skills/
+*.log
+

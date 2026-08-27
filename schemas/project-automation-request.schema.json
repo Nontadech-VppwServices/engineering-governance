@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vespiario.internal/schemas/project-automation-request.schema.json",
+  "title": "Project Automation Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "request_id", "jira_issue_key", "kind", "requested_at", "requested_by"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "request_id": { "type": "string", "minLength": 1 },
+    "jira_issue_key": { "type": "string", "minLength": 1 },
+    "kind": { "enum": ["new_module", "new_project"] },
+    "requested_at": { "type": "string", "format": "date-time" },
+    "requested_by": { "type": "string", "minLength": 1 },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["project_id", "module_name", "repository", "target_path", "effective_context"],
+      "properties": {
+        "project_id": { "type": "string", "minLength": 1 },
+        "module_name": { "type": "string", "minLength": 1 },
+        "repository": { "type": "string", "minLength": 1 },
+        "target_path": { "type": "string", "minLength": 1 },
+        "effective_context": { "type": "object" }
+      }
+    },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "domain", "project_type", "deployment_type", "repository"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+        "name": { "type": "string", "minLength": 1 },
+        "domain": { "type": "string", "minLength": 1 },
+        "project_type": { "enum": ["website", "web_frontend", "fullstack_application", "backend_service", "rpa", "rpa_export", "browser_automation"] },
+        "deployment_type": { "enum": ["aws", "on_prem"] },
+        "repository": { "type": "string", "pattern": "^[A-Za-z0-9._-]+$" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "new_module" } } },
+      "then": { "required": ["module"], "not": { "required": ["project"] } }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "new_project" } } },
+      "then": { "required": ["project"], "not": { "required": ["module"] } }
+    }
+  ]
+}

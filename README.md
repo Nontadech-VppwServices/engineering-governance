@@ -195,6 +195,58 @@ Runtime activation checklist:
 
 - `operations/phase4-runtime-activation.md`
 
+### Phase 5 — Module / New Project Automation — Complete
+
+Governance/contracts:
+
+- `decisions/adr/global/ADR-GLOBAL-006-phase5-project-automation.md`
+- `policies/phase5-project-automation.md`
+- `schemas/project-automation-request.schema.json`
+- `schemas/project-automation-plan.schema.json`
+
+Reference TypeScript service:
+
+- `reference/project-automation/`
+- idempotent durable plan creation
+- Effective Context gate for New Module
+- Phase 4 execution handoff after plan approval
+- accepted golden-archetype selection for New Project
+- named human approval gate
+- deterministic staging-only AWS Next.js/TypeScript and on-prem Playwright/TypeScript RPA scaffolds
+- Docker, environment, CI, tests, health, and project-local governance baselines
+- PostgreSQL persistence and authenticated HTTP API
+
+The service does not create remote repositories, push/merge, accept decisions, or deploy production.
+
+### Phase 6 — Hermes Skills / Memory / Continuous Improvement — Complete
+
+Governance/contracts:
+
+- `decisions/adr/global/ADR-GLOBAL-007-hermes-learning-governance.md`
+- `policies/hermes-learning.md`
+- `schemas/hermes-memory-record.schema.json`
+- `schemas/hermes-learning-observation.schema.json`
+- `schemas/hermes-improvement-proposal.schema.json`
+
+Runtime/reference implementation:
+
+- `reference/hermes-governance/`
+- `hermes/skills/engineering-governance/SKILL.md`
+- non-authoritative memory with provenance, lifecycle, expiry, and secret rejection
+- observation → proposal → evaluation → human approval → publication loop
+- two distinct human reviewers for high-risk skills
+- generated-skill publication isolated from governed built-in skills
+- immutable audit events and PostgreSQL persistence
+- official Hermes container integration with persistent `/opt/data`
+
+Docker/runtime:
+
+- `compose.yaml`
+- `.env.example` plus a local ignored `.env`
+- `operations/phase5-6-docker-runtime.md`
+- PostgreSQL, Phase 5, and Phase 6 start with `docker compose up -d --build`
+- Hermes starts explicitly through the `hermes` Compose profile after interactive provider setup
+
 ## Organization default project archetypes
 
 Accepted architecture decision:
@@ -241,9 +293,9 @@ Phase 3    Effective Context Resolver                  COMPLETE
    ↓
 Phase 4    Jira → AI → Git → PR workflow              IMPLEMENTATION COMPLETE
    ↓
-Phase 5    Module / New Project automation             NEXT
+Phase 5    Module / New Project automation             COMPLETE
    ↓
-Phase 6    Hermes Skills / Memory / continuous improvement
+Phase 6    Hermes Skills / Memory / continuous improvement  COMPLETE
 ```
 
 Parallel operational workstream:
@@ -277,4 +329,4 @@ When documentation, AI memory, cached data, and authoritative systems disagree, 
 
 ## Next step
 
-Build Phase 5 — Module / New Project automation using the approved golden archetypes. In parallel, activate the Phase 4 runtime through `operations/phase4-runtime-activation.md` when infrastructure/credentials are ready.
+Activate the Phase 4 runtime through `operations/phase4-runtime-activation.md` when infrastructure/credentials are ready, then configure the Hermes provider and messaging gateway through `operations/phase5-6-docker-runtime.md`. Production activation still requires real secret-manager values, infrastructure ownership, monitoring, and non-production smoke evidence.

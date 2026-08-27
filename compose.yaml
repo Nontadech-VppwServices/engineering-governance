@@ -1,0 +1,120 @@
+name: ${COMPOSE_PROJECT_NAME:-engineering-governance}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  phase5-project-automation:
+    build:
+      context: ./reference/project-automation
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      PHASE5_API_TOKEN: ${PHASE5_API_TOKEN:?PHASE5_API_TOKEN is required}
+      PHASE5_PORT: 8085
+      GENERATED_OUTPUT_DIR: /data/generated-projects
+    ports:
+      - "${PHASE5_PORT:-8085}:8085"
+    volumes:
+      - generated-projects:/data/generated-projects
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8085/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  phase6-hermes-governance:
+    build:
+      context: ./reference/hermes-governance
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      PHASE6_API_TOKEN: ${PHASE6_API_TOKEN:?PHASE6_API_TOKEN is required}
+      PHASE6_PORT: 8086
+      HERMES_GENERATED_SKILLS_DIR: /data/generated-skills
+    ports:
+      - "${PHASE6_PORT:-8086}:8086"
+    volumes:
+      - generated-skills:/data/generated-skills
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8086/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  hermes-skill-sync:
+    profiles: ["hermes"]
+    image: alpine:3.22
+    restart: "no"
+    user: root
+    environment:
+      HERMES_UID: ${HERMES_UID:-10000}
+      HERMES_GID: ${HERMES_GID:-10000}
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        mkdir -p /opt/data/skills/engineering-governance /opt/data/skills/generated
+        cp -R /seed/engineering-governance/. /opt/data/skills/engineering-governance/
+        if [ -d /generated ]; then cp -R /generated/. /opt/data/skills/generated/; fi
+        chown -R "$${HERMES_UID}:$${HERMES_GID}" /opt/data
+    volumes:
+      - hermes-data:/opt/data
+      - ./hermes/skills/engineering-governance:/seed/engineering-governance:ro
+      - generated-skills:/generated:ro
+
+  hermes:
+    profiles: ["hermes"]
+    image: ${HERMES_IMAGE:-nousresearch/hermes-agent:latest}
+    restart: unless-stopped
+    command: gateway run
+    working_dir: /workspace/engineering-governance
+    environment:
+      HERMES_DASHBOARD: ${HERMES_DASHBOARD:-1}
+      HERMES_UID: ${HERMES_UID:-10000}
+      HERMES_GID: ${HERMES_GID:-10000}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      PHASE5_API_URL: http://phase5-project-automation:8085
+      PHASE5_API_TOKEN: ${PHASE5_API_TOKEN:?PHASE5_API_TOKEN is required}
+      PHASE6_API_URL: http://phase6-hermes-governance:8086
+      PHASE6_API_TOKEN: ${PHASE6_API_TOKEN:?PHASE6_API_TOKEN is required}
+    ports:
+      - "${HERMES_GATEWAY_PORT:-8642}:8642"
+      - "${HERMES_DASHBOARD_PORT:-9119}:9119"
+    shm_size: 1gb
+    volumes:
+      - hermes-data:/opt/data
+      - ./:/workspace/engineering-governance:ro
+    depends_on:
+      hermes-skill-sync:
+        condition: service_completed_successfully
+      phase5-project-automation:
+        condition: service_healthy
+      phase6-hermes-governance:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
+  generated-projects:
+  generated-skills:
+  hermes-data:
