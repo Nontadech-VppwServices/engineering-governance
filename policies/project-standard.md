@@ -6,6 +6,7 @@ Every active project onboarded to AI SDLC must have a central registry record un
 
 - canonical project ID
 - project name, domain, and project type
+- declared project archetype
 - technical ownership
 - Jira project mapping or an explicit `unmapped` state
 - Git repository
@@ -18,6 +19,48 @@ Every active project onboarded to AI SDLC must have a central registry record un
 - business-context location and onboarding state
 
 Unknown values must remain explicitly unknown/unverified; AI must not infer them merely to satisfy the registry.
+
+## Default project archetypes
+
+Architecture authority: `decisions/adr/global/ADR-GLOBAL-001-default-project-archetypes.md`.
+
+### New AWS website/application
+
+Default archetype:
+
+```text
+aws-nextjs-typescript
+```
+
+Descriptor:
+
+```text
+templates/archetypes/aws-nextjs-typescript.yaml
+```
+
+Use **Next.js + TypeScript** by default and apply the AWS API + E2E production-gate requirement from `policies/testing.md`.
+
+### New on-premise RPA
+
+Default archetype:
+
+```text
+onprem-playwright-typescript-rpa
+```
+
+Descriptor:
+
+```text
+templates/archetypes/onprem-playwright-typescript-rpa.yaml
+```
+
+Use **Playwright + TypeScript** by default and integrate the standard RPA run-event/reporting contract from `policies/rpa-reporting.md`.
+
+### Archetype exception
+
+If project requirements require a different primary framework/runtime, create an ADR describing the reason, alternatives, risks, and operational impact. The exception becomes authoritative only after the ADR is accepted.
+
+AI must not silently choose a different stack when a default archetype applies.
 
 ## Project-local governance
 
@@ -55,6 +98,12 @@ AWS application projects must have automated **API tests and E2E tests** as mand
 
 On-premise/RPA projects must define automation-appropriate test gates such as workflow, parser, export, file-contract, idempotency, or smoke tests.
 
+## RPA reporting
+
+All new RPA projects must implement `schemas/rpa-run-event.schema.json` and emit normalized lifecycle events to the central RPA Reporting Service.
+
+Bots must not own LINE credentials or daily/weekly/monthly reporting schedules. LINE delivery is handled centrally through the LINE Messaging API according to `policies/rpa-reporting.md`.
+
 ## Authority rule
 
 The registry should store stable identities, classifications, governance state, and pointers. Do not copy information that can be authoritatively read from the repository/runtime unless there is a justified governance reason.
@@ -63,4 +112,4 @@ The registry should store stable identities, classifications, governance state, 
 
 Before an AI agent can modify a project, the project registry must explicitly define allowed and denied actions.
 
-The agent must resolve applicable organization policies before planning or modifying code.
+The agent must resolve applicable organization policies and the declared/default archetype before planning or modifying code.
