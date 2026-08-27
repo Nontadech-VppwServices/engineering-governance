@@ -62,6 +62,12 @@ export class AiSdlcOrchestrator {
     job = { ...job, repositories: context.routing.repositories.map((repo) => repo.repository) };
     job = transitionJob(job, 'ANALYZING', 'ai');
     await this.ports.jobs.save(job);
+    await this.ports.jira.sync({
+      issueKey: job.jira_issue_key,
+      job,
+      message: `AI SDLC started analysis. Resolved ${job.repositories.length} repository target(s).`,
+      desiredCanonicalState: 'ANALYZING',
+    });
 
     if (workType === 'analysis') {
       job = transitionJob(job, 'DONE', 'ai', 'Analysis-only request completed without repository modification.');
@@ -187,6 +193,12 @@ export class AiSdlcOrchestrator {
 
     job = transitionJob(job, 'TESTING', 'ai');
     await this.ports.jobs.save(job);
+    await this.ports.jira.sync({
+      issueKey: job.jira_issue_key,
+      job,
+      message: 'AI implementation completed. Required quality gates are being evaluated before PR creation.',
+      desiredCanonicalState: 'TESTING',
+    });
 
     for (const item of results) {
       const quality = evaluateQualityGates(context, item.result);
