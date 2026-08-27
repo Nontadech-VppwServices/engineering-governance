@@ -99,9 +99,11 @@ Approved RPA Jira Component keys:
 - `PDF_SIGNER`
 - `SHAREPOINT_EXCEL_EXTRACTOR`
 
-### Phase 3 — Effective Context Resolver — Implementation complete, pending human merge
+### Phase 3 — Effective Context Resolver — Complete
 
-Architecture/policy in this branch:
+Merged through human-reviewed PR #1 on 2026-08-27.
+
+Architecture/policy:
 
 - `decisions/adr/global/ADR-GLOBAL-004-effective-context-resolver.md`
 - `policies/context-resolution.md`
@@ -185,7 +187,7 @@ Phase 2.2  Compliance + business-context onboarding   COMPLETE
    ↓
 Phase 2.3  Jira repository routing                    COMPLETE
    ↓
-Phase 3    Effective Context Resolver                  REVIEW / MERGE PENDING
+Phase 3    Effective Context Resolver                  COMPLETE
    ↓
 Phase 4    Jira → AI → Git → PR workflow
    ↓
@@ -209,6 +211,6 @@ RPA Reporting Service
 
 When documentation, AI memory, cached data, and authoritative systems disagree, follow `ssot/precedence.yaml` and report the conflict instead of silently guessing which value is correct.
 
-## Next step after Phase 3 merge
+## Next step
 
 Build Phase 4 — Jira → AI → Git → PR workflow around the Effective Context Resolver contract. Phase 4 supplies live Atlassian/GitHub adapters and job orchestration around the deterministic resolver rather than allowing each AI agent to implement its own precedence/routing logic.
