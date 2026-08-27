@@ -17,6 +17,7 @@ Every active project onboarded to AI SDLC must have a central registry record un
 - AI permissions
 - applicable test policy and compliance state
 - business-context location and onboarding state
+- Jira repository-routing mode when a Jira project can address multiple repositories
 
 Unknown values must remain explicitly unknown/unverified; AI must not infer them merely to satisfy the registry.
 
@@ -104,6 +105,19 @@ All new RPA projects must implement `schemas/rpa-run-event.schema.json` and emit
 
 Bots must not own LINE credentials or daily/weekly/monthly reporting schedules. LINE delivery is handled centrally through the LINE Messaging API according to `policies/rpa-reporting.md`.
 
+## Jira repository routing
+
+Architecture authority: `decisions/adr/global/ADR-GLOBAL-003-jira-repository-routing.md`.
+
+Follow `policies/jira-repository-routing.md`.
+
+A Jira project must not be assumed to map one-to-one to a Git repository.
+
+- application projects that may span frontend/backend/CMS/service repositories use AI repository discovery by default;
+- Jira project `RPA` requires a registered Component value from `ssot/jira-routing/RPA.yaml`;
+- one Jira issue may resolve to multiple impacted repositories;
+- routing conflicts or unmapped components must block code modification until resolved.
+
 ## Authority rule
 
 The registry should store stable identities, classifications, governance state, and pointers. Do not copy information that can be authoritatively read from the repository/runtime unless there is a justified governance reason.
@@ -112,4 +126,4 @@ The registry should store stable identities, classifications, governance state, 
 
 Before an AI agent can modify a project, the project registry must explicitly define allowed and denied actions.
 
-The agent must resolve applicable organization policies and the declared/default archetype before planning or modifying code.
+The agent must resolve applicable organization policies, the declared/default archetype, and repository routing before planning or modifying code.
