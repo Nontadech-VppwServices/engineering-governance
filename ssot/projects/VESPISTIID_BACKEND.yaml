@@ -1,0 +1,51 @@
+schema_version: 1
+project:
+  id: VESPISTIID_BACKEND
+  name: Vespistiid Backend
+  status: active
+  domain: vespistiid
+  type: fullstack_backend_service
+ownership:
+  team: engineering
+  technical_owner: null
+  business_owner: null
+  status: unverified
+jira:
+  status: unmapped
+  project_key: null
+repository:
+  provider: github
+  organization: VespiarioThailand
+  name: vespistiid-backend
+  default_branch: main
+runtime:
+  family: node
+  language: typescript
+  framework: nextjs
+  framework_version_source: package.json
+  database: postgresql
+  orm: prisma
+  workers: true
+deployment:
+  type: aws
+  status: verified
+  verification_source: owner_confirmation
+  platform: unknown
+  packaging: docker
+testing:
+  policy: policies/testing.md
+  api_required: true
+  e2e_required: true
+  observed:
+    unit: vitest
+    api: unverified
+    e2e: unverified
+  compliance_status: unverified
+business_context:
+  policy: policies/business-context.md
+  repository_location: docs/business/
+  status: not_onboarded
+ai:
+  allow: {read: true, create_branch: true, commit: true, create_pr: true}
+  deny: {merge: true, production_deploy: true, production_credentials: true}
+unresolved: [technical_owner, business_owner, jira_mapping, aws_platform, api_test_compliance, e2e_test_compliance]
