@@ -141,9 +141,59 @@ CI validation:
 - TypeScript typecheck
 - resolver/service/HTTP tests
 
-Effective Context is a computed view, never a replacement for Jira/GitHub/ADR/BDR/policy sources. Blocking routing/governance conflicts prevent code modification before an agent reaches Phase 4.
+Effective Context is a computed view, never a replacement for Jira/GitHub/ADR/BDR/policy sources.
 
-Provider-specific Atlassian and GitHub runtime adapters are intentionally the next integration layer. They implement the Phase 3 source ports without changing the Effective Context contract or deterministic core.
+### Phase 4 — Jira → AI → Git → PR — Implementation Complete
+
+Phase 4 implementation is complete in `main`. **Production runtime is not active yet.** Runtime activation is controlled separately by `operations/phase4-runtime-activation.md`.
+
+Governance/contracts:
+
+- `decisions/adr/global/ADR-GLOBAL-005-phase4-ai-sdlc-orchestration.md`
+- `policies/phase4-orchestration.md`
+- `schemas/jira-ai-intake-event.schema.json`
+- `schemas/ai-sdlc-job.schema.json`
+- `schemas/agent-execution-request.schema.json`
+- `schemas/agent-execution-result.schema.json`
+
+Reference TypeScript orchestrator:
+
+- `reference/ai-sdlc-orchestrator/`
+- native Jira Cloud webhook normalization
+- trigger by configured AI SDLC assignee / assignee change
+- BullMQ/Redis queue adapter
+- PostgreSQL durable JobStore adapter
+- Phase 3 Context Resolver HTTP adapter
+- Jira REST comment/status synchronization
+- project-aware Jira destination-status mapping without hard-coded transition IDs
+- GitHub REST branch/PR adapter
+- Agent Runner HTTP contract
+- multi-repository PR creation
+- Bug → code/test/PR workflow
+- New Module → mandatory `WAITING_PLAN_APPROVAL`
+- Analysis-only workflow without code/PR
+- AWS API + E2E quality-gate enforcement from Effective Context
+- GitHub `pull_request` webhook completion tracking
+- `DONE` only after all required PRs are merged
+- AI merge disabled
+- AI production deployment disabled
+
+Jira workflow evidence/configuration:
+
+- `ssot/jira-workflows/phase4-status-mapping.yaml`
+- live Jira verified/partially verified for `PIM`, `RPA`, `TMS`, and `VESPISTI`
+- unavailable Jira transitions fall back to comment-only synchronization instead of failing the AI job
+
+CI validation:
+
+- `.github/workflows/phase4-orchestrator-validation.yml`
+- Phase 4 JSON schema validation
+- TypeScript typecheck
+- orchestration, routing, quality-gate, Jira webhook and Jira REST tests
+
+Runtime activation checklist:
+
+- `operations/phase4-runtime-activation.md`
 
 ## Organization default project archetypes
 
@@ -189,14 +239,28 @@ Phase 2.3  Jira repository routing                    COMPLETE
    ↓
 Phase 3    Effective Context Resolver                  COMPLETE
    ↓
-Phase 4    Jira → AI → Git → PR workflow
+Phase 4    Jira → AI → Git → PR workflow              IMPLEMENTATION COMPLETE
    ↓
-Phase 5    Module / New Project automation
+Phase 5    Module / New Project automation             NEXT
    ↓
 Phase 6    Hermes Skills / Memory / continuous improvement
 ```
 
-Parallel implementation workstream:
+Parallel operational workstream:
+
+```text
+Phase 4 Runtime Activation
+   ├── Context Resolver deployment
+   ├── Redis / BullMQ
+   ├── PostgreSQL JobStore
+   ├── Jira webhook + AI assignee
+   ├── GitHub App + webhook
+   ├── Agent Runner endpoint
+   ├── secrets / monitoring
+   └── non-production smoke test
+```
+
+Parallel product workstream:
 
 ```text
 RPA Reporting Service
@@ -213,4 +277,4 @@ When documentation, AI memory, cached data, and authoritative systems disagree, 
 
 ## Next step
 
-Build Phase 4 — Jira → AI → Git → PR workflow around the Effective Context Resolver contract. Phase 4 supplies live Atlassian/GitHub adapters and job orchestration around the deterministic resolver rather than allowing each AI agent to implement its own precedence/routing logic.
+Build Phase 5 — Module / New Project automation using the approved golden archetypes. In parallel, activate the Phase 4 runtime through `operations/phase4-runtime-activation.md` when infrastructure/credentials are ready.
