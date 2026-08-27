@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vespiario.internal/schemas/effective-context.schema.json",
+  "title": "Effective Context",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "request_id", "generated_at", "project", "routing", "governance", "business", "repositories", "compliance", "conflicts", "unresolved", "decision", "sources"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "request_id": { "type": "string" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "project": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "domain": { "type": ["string", "null"] },
+        "type": { "type": ["string", "null"] },
+        "archetype": { "type": ["string", "null"] },
+        "jira_project_key": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "jira": {
+      "type": ["object", "null"],
+      "properties": {
+        "issue_key": { "type": "string" },
+        "summary": { "type": ["string", "null"] },
+        "status": { "type": ["string", "null"] },
+        "issue_type": { "type": ["string", "null"] },
+        "component": { "type": ["string", "null"] },
+        "work_type": { "type": ["string", "null"] },
+        "retrieved_at": { "type": "string", "format": "date-time" }
+      },
+      "additionalProperties": true
+    },
+    "routing": {
+      "type": "object",
+      "required": ["mode", "status", "repositories"],
+      "properties": {
+        "mode": { "enum": ["deterministic_component", "ai_discovery", "project_default", "explicit"] },
+        "status": { "enum": ["resolved", "analyzing_candidates", "multi_repo", "routing_conflict", "unmapped_component", "waiting_information"] },
+        "repositories": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["repository", "role", "confidence", "reason"],
+            "properties": {
+              "repository": { "type": "string", "pattern": "^[^/]+/[^/]+$" },
+              "role": { "enum": ["primary", "secondary", "frontend", "backend", "cms", "worker", "test_only", "unknown"] },
+              "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+              "reason": { "type": "string" },
+              "evidence": { "type": "array", "items": { "type": "string" }, "default": [] }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "governance": {
+      "type": "object",
+      "required": ["policies", "adrs", "bdrs"],
+      "properties": {
+        "policies": { "type": "array", "items": { "type": "string" } },
+        "adrs": { "type": "array", "items": { "type": "string" } },
+        "bdrs": { "type": "array", "items": { "type": "string" } },
+        "exceptions": { "type": "array", "items": { "type": "string" }, "default": [] }
+      },
+      "additionalProperties": false
+    },
+    "business": {
+      "type": "object",
+      "required": ["context_status", "context_paths"],
+      "properties": {
+        "context_status": { "type": "string" },
+        "context_paths": { "type": "array", "items": { "type": "string" } },
+        "approved_specifications": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "live_jira_is_authoritative": { "const": true }
+      },
+      "additionalProperties": false
+    },
+    "repositories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["repository", "target_branch", "facts"],
+        "properties": {
+          "repository": { "type": "string" },
+          "target_branch": { "type": "string" },
+          "facts": { "type": "object", "additionalProperties": true },
+          "project_context_paths": { "type": "array", "items": { "type": "string" }, "default": [] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "compliance": {
+      "type": "object",
+      "properties": {
+        "testing": { "type": ["string", "null"] },
+        "business_context": { "type": ["string", "null"] },
+        "deployment": { "type": ["string", "null"] },
+        "findings": { "type": "array", "items": { "type": "string" }, "default": [] }
+      },
+      "additionalProperties": false
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "severity", "blocking", "message"],
+        "properties": {
+          "type": { "enum": ["architecture_drift", "configuration_drift", "documentation_drift", "routing_conflict", "unmapped_component", "unresolved_authority", "policy_violation", "stale_context"] },
+          "severity": { "enum": ["info", "low", "medium", "high", "critical"] },
+          "blocking": { "type": "boolean" },
+          "message": { "type": "string" },
+          "sources": { "type": "array", "items": { "type": "string" }, "default": [] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "unresolved": { "type": "array", "items": { "type": "string" } },
+    "decision": {
+      "type": "object",
+      "required": ["can_plan", "can_modify_code", "can_create_pr", "can_deploy_production"],
+      "properties": {
+        "can_plan": { "type": "boolean" },
+        "can_modify_code": { "type": "boolean" },
+        "can_create_pr": { "type": "boolean" },
+        "can_deploy_production": { "const": false },
+        "reason": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "authority", "retrieved_at"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "authority": { "type": "string" },
+          "retrieved_at": { "type": "string", "format": "date-time" },
+          "cached": { "type": "boolean", "default": false }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

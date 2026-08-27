@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "request_id": "example-application-multi-repo",
+  "generated_at": "2026-08-27T10:30:00+07:00",
+  "project": {
+    "id": "VESPISTIID",
+    "name": "Vespisti ID",
+    "domain": "vespistiid",
+    "type": "application",
+    "archetype": "aws-nextjs-typescript",
+    "jira_project_key": "VESPISTIID"
+  },
+  "jira": {
+    "issue_key": "VESPISTIID-200",
+    "summary": "Login succeeds but profile data is missing",
+    "status": "To Do",
+    "issue_type": "Bug",
+    "component": null,
+    "work_type": "bug",
+    "retrieved_at": "2026-08-27T10:29:30+07:00"
+  },
+  "routing": {
+    "mode": "ai_discovery",
+    "status": "multi_repo",
+    "repositories": [
+      {
+        "repository": "VespiarioThailand/vespistiid-backend",
+        "role": "backend",
+        "confidence": 0.97,
+        "reason": "Profile API implementation and failing response are located in the backend.",
+        "evidence": ["/api/profile", "repository_code_search"]
+      },
+      {
+        "repository": "VespiarioThailand/vespistiid-platform",
+        "role": "frontend",
+        "confidence": 0.9,
+        "reason": "The platform consumes the profile API and requires regression coverage.",
+        "evidence": ["profile client", "e2e profile flow"]
+      }
+    ]
+  },
+  "governance": {
+    "policies": ["policies/testing.md", "policies/jira-repository-routing.md", "policies/context-resolution.md"],
+    "adrs": ["ADR-GLOBAL-001", "ADR-GLOBAL-003", "ADR-GLOBAL-004"],
+    "bdrs": [],
+    "exceptions": []
+  },
+  "business": {
+    "context_status": "scaffolded_pending_human_review",
+    "context_paths": ["docs/business/README.md"],
+    "approved_specifications": [],
+    "live_jira_is_authoritative": true
+  },
+  "repositories": [
+    {
+      "repository": "VespiarioThailand/vespistiid-backend",
+      "target_branch": "main",
+      "facts": {"runtime":"nextjs/typescript","deployment":"aws"},
+      "project_context_paths": ["docs/business/README.md"]
+    },
+    {
+      "repository": "VespiarioThailand/vespistiid-platform",
+      "target_branch": "main",
+      "facts": {"runtime":"nextjs/typescript","deployment":"aws"},
+      "project_context_paths": ["docs/business/README.md"]
+    }
+  ],
+  "compliance": {
+    "testing": "mixed",
+    "business_context": "scaffolded_pending_human_review",
+    "deployment": "verified",
+    "findings": []
+  },
+  "conflicts": [],
+  "unresolved": [],
+  "decision": {
+    "can_plan": true,
+    "can_modify_code": true,
+    "can_create_pr": true,
+    "can_deploy_production": false,
+    "reason": null
+  },
+  "sources": [
+    {
+      "id": "VESPISTIID-200",
+      "type": "jira_issue",
+      "authority": "jira_current_state",
+      "retrieved_at": "2026-08-27T10:29:30+07:00",
+      "cached": false
+    }
+  ]
+}

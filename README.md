@@ -99,6 +99,50 @@ Approved RPA Jira Component keys:
 - `PDF_SIGNER`
 - `SHAREPOINT_EXCEL_EXTRACTOR`
 
+### Phase 3 — Effective Context Resolver — Implementation complete, pending human merge
+
+Architecture/policy in this branch:
+
+- `decisions/adr/global/ADR-GLOBAL-004-effective-context-resolver.md`
+- `policies/context-resolution.md`
+
+Machine contracts:
+
+- `schemas/context-resolve-request.schema.json`
+- `schemas/effective-context.schema.json`
+- `api/context-resolver.openapi.yaml`
+
+Reference TypeScript service:
+
+- `reference/context-resolver/`
+- deterministic resolver core
+- source ports for Jira, Project Registry, RPA routing, repository discovery/facts, and governance/business context
+- `ContextResolverService` orchestration
+- two-pass routing → repository inspection → final context assembly
+- HTTP adapter with `/healthz`, `/v1/context/resolve`, and `/v1/projects/{projectId}/context`
+- deterministic RPA Component routing
+- evidence-based multi-repository application routing input
+- blocking conflict evaluation
+- agent permissions (`can_plan`, `can_modify_code`, `can_create_pr`, `can_deploy_production=false`)
+- static/in-memory adapter for tests/local examples
+- core, service, and HTTP integration tests
+
+Examples:
+
+- `examples/effective-context/rpa-ap-po-invoice.json`
+- `examples/effective-context/application-multi-repo.json`
+
+CI validation:
+
+- `.github/workflows/context-resolver-validation.yml`
+- JSON schema validation
+- TypeScript typecheck
+- resolver/service/HTTP tests
+
+Effective Context is a computed view, never a replacement for Jira/GitHub/ADR/BDR/policy sources. Blocking routing/governance conflicts prevent code modification before an agent reaches Phase 4.
+
+Provider-specific Atlassian and GitHub runtime adapters are intentionally the next integration layer. They implement the Phase 3 source ports without changing the Effective Context contract or deterministic core.
+
 ## Organization default project archetypes
 
 Accepted architecture decision:
@@ -141,7 +185,7 @@ Phase 2.2  Compliance + business-context onboarding   COMPLETE
    ↓
 Phase 2.3  Jira repository routing                    COMPLETE
    ↓
-Phase 3    Effective Context Resolver
+Phase 3    Effective Context Resolver                  REVIEW / MERGE PENDING
    ↓
 Phase 4    Jira → AI → Git → PR workflow
    ↓
@@ -165,6 +209,6 @@ RPA Reporting Service
 
 When documentation, AI memory, cached data, and authoritative systems disagree, follow `ssot/precedence.yaml` and report the conflict instead of silently guessing which value is correct.
 
-## Next step
+## Next step after Phase 3 merge
 
-Build Phase 3 — Effective Context Resolver. It should resolve project registry data, organization policies, applicable ADR/BDR records, Jira repository routing, project-local `.ai` metadata, `docs/business/` context, live Jira issue context, repository truth pointers, compliance gaps, project archetype, reporting requirements, and unresolved/conflict flags into one effective project context for AI agents.
+Build Phase 4 — Jira → AI → Git → PR workflow around the Effective Context Resolver contract. Phase 4 supplies live Atlassian/GitHub adapters and job orchestration around the deterministic resolver rather than allowing each AI agent to implement its own precedence/routing logic.
