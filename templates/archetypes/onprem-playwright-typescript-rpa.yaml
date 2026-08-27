@@ -1,0 +1,56 @@
+schema_version: 1
+archetype:
+  id: onprem-playwright-typescript-rpa
+  name: On-Premise Playwright TypeScript RPA
+  status: active
+  decision: decisions/adr/global/ADR-GLOBAL-001-default-project-archetypes.md
+
+selection:
+  deployment_type: on_prem
+  project_types:
+    - rpa
+    - rpa_export
+    - browser_automation
+
+stack:
+  language: typescript
+  runtime: node
+  automation_framework: playwright
+  packaging_preference: docker_compose
+
+quality:
+  required:
+    - typecheck
+    - controlled_workflow_test
+    - build_or_runtime_verification
+  conditional_required:
+    - parser_transformation_test
+    - idempotency_retry_test
+    - file_contract_test
+  recommended:
+    - lint
+    - unit_test
+    - smoke_test
+
+operations:
+  structured_logging: required
+  retry_backoff: required
+  idempotency_for_state_change: required
+  evidence_capture: required
+  direct_production_credentials_in_repo: prohibited
+
+reporting:
+  policy: policies/rpa-reporting.md
+  event_schema: schemas/rpa-run-event.schema.json
+  central_reporting_required: true
+  direct_line_integration_in_bot: prohibited
+
+repository_baseline:
+  required_paths:
+    - docs/business/README.md
+    - docs/adr/README.md
+    - docs/bdr/README.md
+    - .ai/project.yaml
+
+exception:
+  requires_accepted_adr: true
