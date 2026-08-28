@@ -6,26 +6,31 @@ Define the boundary between deterministic AI SDLC control and Hermes agent reaso
 
 ## Architecture rule
 
-Hermes is the default AI execution plane for engineering work. It performs reasoning-oriented work through a versioned execution contract, while deterministic services retain source-of-truth, authorization, lifecycle and Git/deployment control.
-
-```text
-Control Plane → Trusted Agent Runner → Hermes Execution Plane
-              ← verified evidence  ← reasoning / file edits
-```
-
-For external engineering capabilities, Hermes should use the governed **AI SDLC MCP Tool Boundary** defined by ADR-GLOBAL-009 instead of owning provider-specific Jira/GitHub integrations.
+Hermes is the execution plane for engineering and automation work. It owns reasoning, orchestration sequencing, scheduling and formatting. The `governance-mcp` boundary owns what must not depend on model behaviour: provider credentials, human approval, quality verdicts, Git authority, job-state validation and delivery guarantees.
 
 ```text
 Hermes
-  ↓ native MCP client
-AI SDLC MCP Tool Boundary
+  ↓ native MCP client, no provider credential
+governance-mcp
   ↓ server-side job/repository/phase authorization
-Control Plane / Trusted Runner adapters
-  ↓
-Jira / GitHub / Context / approved quality gates
+Jira / GitHub / Context / approved quality gates / LINE outbox
 ```
 
-MCP reduces integration complexity; it does not transfer authority from the Control Plane or Trusted Agent Runner to Hermes.
+MCP is the integration surface, not a transfer of authority. A tool call is a request to the boundary; the boundary decides.
+
+## Hermes-first precedence
+
+For any engineering or automation capability, first determine whether an approved Hermes skill and its governed tools can perform the work safely and reliably. When they can, Hermes is the required execution entry point. Do not add a service for work that is sequencing, formatting, templating or scheduling.
+
+A capability stays deterministic only when an incorrect result would be unrecoverable, unauditable, or a security failure. That test is what keeps credential custody, approval, quality verdicts, Git writes, idempotency and delivery in `governance-mcp`.
+
+A direct non-Hermes execution path beyond that boundary requires a documented exception recording its rationale, owner, bounded scope, and review date. An exception never grants Hermes provider credentials.
+
+Scheduled work follows `policies/hermes-scheduling-governance.md`. Hermes cron owns timing and the execution decision; the boundary retains idempotency, retry, delivery and audit persistence.
+
+## Execution scope
+
+Each execution is bound to a per-call HMAC-signed job token minted by `governance-mcp` in `prepare_workspace` and derived from Effective Context. Hermes carries the token and cannot mint one or widen the one it holds. See ADR-GLOBAL-010 for the trade-off this replaced and its mitigations.
 
 ## Execution phases
 
@@ -36,7 +41,7 @@ MCP reduces integration complexity; it does not transfer authority from the Cont
 - Output should identify findings, likely root cause/impact, evidence, uncertainties and recommended next action.
 - No repository change may survive the run.
 - Any detected file modification is a contract violation and blocks the execution result.
-- MCP usage is limited to read/scoped inspection capabilities allowed by `policies/ai-sdlc-mcp.md`.
+- Tool usage is limited to read/scoped inspection capabilities allowed by `policies/ai-sdlc-mcp.md`. Git write tools are refused by execution phase, server-side.
 
 ### plan
 
@@ -80,7 +85,7 @@ Hermes execution containers must not receive:
 - production secrets;
 - unrestricted secret-store credentials.
 
-The trusted Agent Runner / AI SDLC MCP server may receive the minimum provider credential necessary for controlled operations, but must not expose that credential in the Hermes run request, prompt, Effective Context, skill or workspace files.
+`governance-mcp` holds the minimum provider credential necessary for controlled operations. It must never expose that credential in a tool result, prompt, Effective Context, skill, or any file inside a workspace Hermes can read — including Git remote configuration.
 
 A scoped MCP transport credential is permitted only to authenticate Hermes to the governed tool boundary; it must not itself grant direct provider or production access.
 

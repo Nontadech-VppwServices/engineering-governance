@@ -1,7 +1,0 @@
-_config_version: 12
-gateway:
-  platforms:
-    api_server:
-      enabled: true
-      host: 0.0.0.0
-      max_concurrent_runs: 2

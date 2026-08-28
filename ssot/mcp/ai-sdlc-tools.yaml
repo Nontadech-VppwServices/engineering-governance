@@ -1,34 +1,53 @@
-schema_version: 1
+schema_version: 2
 server:
-  id: ai-sdlc
+  id: governance
   purpose: governed_capability_facade_for_hermes_execution
   authority: false
-  scope: job_scoped
+  scope: job_scoped_signed_token
+
+# Scope binding is a per-call HMAC-signed job token minted by governance-mcp in
+# prepare_workspace. See ADR-GLOBAL-010. Hermes carries the token; it cannot
+# mint one or widen the one it holds.
 
 read_tools:
   - name: get_effective_context
     scope: current_job
+  - name: list_ready_jira_issues
+    scope: allowed_project_keys
   - name: get_jira_issue
-    scope: current_issue
+    scope: allowed_project_keys
   - name: search_repository
     scope: allowed_repositories
   - name: read_repository_file
     scope: allowed_repositories
+  - name: get_job
+    scope: current_job
+  - name: get_plan
+    scope: current_plan
+  - name: get_action
+    scope: current_action
+  - name: get_pull_request_status
+    scope: allowed_repositories
+  - name: query_rpa_metrics
+    scope: reporting_period
 
 controlled_action_tools:
+  - name: create_job
+    scope: current_issue
+    idempotent_on: intake_event_id
+  - name: record_job_state
+    scope: current_job
+    server_validated: state_machine
+  - name: prepare_workspace
+    scope: routed_repositories
+    mints: job_token
   - name: run_quality_gate
     scope: allowed_repositories
     arbitrary_command: false
-  - name: ensure_working_branch
-    scope: approved_working_branch
-    phase: implement
-  - name: commit_verified_changes
+  - name: commit_and_push
     scope: approved_working_branch
     phase: implement
     requires_trusted_quality_verdict: true
-  - name: push_working_branch
-    scope: approved_working_branch
-    phase: implement
   - name: create_pull_request
     scope: approved_working_branch
     phase: implement
@@ -37,6 +56,35 @@ controlled_action_tools:
   - name: add_jira_comment
     scope: current_issue
     sanitized: true
+  - name: sync_jira_state
+    scope: current_issue
+    mapping_source: ssot/jira-workflows
+  - name: issue_principal
+    scope: line_identity_allowlist
+    source: gateway_metadata_only
+  - name: draft_action
+    scope: principal_roles
+    executes: false
+  - name: confirm_action
+    scope: principal_roles
+    requires_private_confirmation: true
+    requires_requester_match: true
+  - name: create_plan
+    scope: current_issue
+    requires_human_approval_before_execution: true
+  - name: record_observation
+    scope: current_execution
+    sanitized: true
+  - name: propose_skill_change
+    scope: current_execution
+    self_approving: false
+  - name: ingest_rpa_event
+    scope: reporting
+    idempotent_on: event_id
+  - name: send_line_message
+    scope: line_delivery_allowlist
+    delivery: transactional_outbox
+    idempotent_on: idempotency_key
 
 forbidden_tools:
   - merge_pull_request
@@ -49,15 +97,31 @@ forbidden_tools:
   - accept_bdr
   - grant_human_approval
 
+# Deployment and rollback are reachable only as human-confirmed action types
+# through draft_action/confirm_action, dispatching a protected workflow
+# registered in ssot/projects/. Production still stops at GitHub Environment
+# approval. They are never exposed as callable tools.
+human_confirmed_action_types:
+  - create_requirement
+  - update_requirement
+  - approve_plan
+  - execute_plan
+  - provide_information
+  - request_merge
+  - request_deployment
+  - request_rollback
+  - cancel_job
+  - retry_job
+
 credentials:
   hermes_receives_provider_credentials: false
   provider_credentials_owner:
-    - ai_sdlc_mcp_server
-    - trusted_agent_runner
+    - governance_mcp
   production_credentials_available: false
 
 audit:
   required: true
+  table: mcp_tool_audit
   fields:
     - job_id
     - tool_name

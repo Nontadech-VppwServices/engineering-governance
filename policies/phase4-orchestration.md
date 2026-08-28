@@ -4,11 +4,13 @@
 
 Controls Jira → governed AI execution → Git branch/test → pull request → Jira synchronization.
 
-ADR-GLOBAL-008 refines the execution boundary: the Phase 4 service is the deterministic **Control Plane**, while Hermes is the default **AI Execution Plane** behind the trusted Agent Runner.
+ADR-GLOBAL-010 consolidates the execution boundary: Hermes drives the AI SDLC lifecycle through the `ai-sdlc-execution` skill, and `governance-mcp` holds the deterministic authority. There is no separate orchestrator service.
 
 ## Intake
 
 An intake event must have a stable event ID and Jira issue key. Duplicate events must be deduplicated before starting another execution for the same logical event.
+
+Recurring Jira intake enters through the approved Hermes scheduled task under `policies/hermes-scheduling-governance.md`. The `list_ready_jira_issues` tool retains the Jira filtering and project/assignee allowlist server-side; `create_job` is idempotent on the intake event ID. There is no polling loop and no queue.
 
 The orchestrator must load live Jira issue context and Effective Context before invoking material AI execution.
 
@@ -32,7 +34,7 @@ For application projects, Jira users do not need to identify frontend/backend re
 
 ## Job persistence
 
-Internal job state must be durable and independent from queue delivery state.
+Internal job state must be durable and validated server-side. Every transition goes through `record_job_state`, which rejects an illegal transition; Hermes chooses the sequence but cannot invent a state.
 
 Required state history fields:
 
@@ -45,7 +47,7 @@ Queue state is delivery state only and is never the authoritative AI SDLC job st
 
 ## Work execution
 
-The trusted Agent Runner receives a versioned execution contract containing Jira objective, Effective Context, repository, branch scope, work type, execution phase and hard constraints.
+`prepare_workspace` derives the execution scope from Effective Context — repository allowlist, approved working branch, execution phase and permissions — and returns it as a signed job token. The scope is never supplied by the caller.
 
 Supported Hermes execution phases:
 
@@ -144,7 +146,7 @@ A closed-unmerged PR does not complete the job.
 
 ## Production
 
-Production deployment remains CI/CD responsibility after human/policy-controlled merge. The Phase 4 orchestrator, Hermes Execution Plane and Agent Runner cannot directly deploy production.
+Production deployment remains CI/CD responsibility after human/policy-controlled merge. Neither Hermes nor `governance-mcp` can deploy production directly; a human-confirmed request may only dispatch a protected workflow, which then stops at GitHub Environment approval.
 
 Production credentials must not be persisted in job records, Jira comments, Effective Context payloads, Agent execution requests, Hermes prompts, workspace files or Hermes memory.
 

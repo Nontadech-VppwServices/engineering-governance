@@ -18,6 +18,7 @@ This repository defines **where authoritative information lives** and the preced
 8. AI may propose changes to governance, ADRs, and BDRs, but approval remains a human responsibility.
 9. Production deployment must remain controlled by CI/CD and environment protection rules, not direct AI access.
 10. Unknown or unmapped facts must remain explicitly unknown; AI must not fill governance gaps by inference.
+11. Hermes is the required execution entry point for any approved capability it can safely and reliably perform; alternatives require a documented bounded exception that preserves required control-plane boundaries.
 
 ## Current status
 
@@ -112,11 +113,11 @@ Machine contracts:
 
 - `schemas/context-resolve-request.schema.json`
 - `schemas/effective-context.schema.json`
-- `api/context-resolver.openapi.yaml`
+- `schemas/effective-context.schema.json` (the Effective Context contract; the standalone HTTP API was removed by ADR-GLOBAL-010 and is now the `get_effective_context` tool)
 
 Reference TypeScript service:
 
-- `reference/context-resolver/`
+- `reference/governance-mcp/` (`get_effective_context`)
 - deterministic resolver core
 - source ports for Jira, Project Registry, RPA routing, repository discovery/facts, and governance/business context
 - `ContextResolverService` orchestration
@@ -136,7 +137,7 @@ Examples:
 
 CI validation:
 
-- `.github/workflows/context-resolver-validation.yml`
+- `.github/workflows/governance-validation.yml`
 - JSON schema validation
 - TypeScript typecheck
 - resolver/service/HTTP tests
@@ -145,7 +146,7 @@ Effective Context is a computed view, never a replacement for Jira/GitHub/ADR/BD
 
 ### Phase 4 — Jira → AI → Git → PR — Runtime Complete
 
-Phase 4 has an executable runtime, Docker image, PostgreSQL migrations, Redis/BullMQ worker, authenticated APIs, Phase 5 handoff and isolated Agent Runner. Connecting real Jira/GitHub credentials remains an operator activation step.
+Phase 4 has an executable runtime, Docker image, PostgreSQL migrations and a governed tool surface. Since Phase 4.3 the lifecycle is driven by the `ai-sdlc-execution` skill over `governance-mcp` rather than by a queue-backed orchestrator service. Connecting real Jira/GitHub credentials remains an operator activation step.
 
 Governance/contracts:
 
@@ -158,12 +159,11 @@ Governance/contracts:
 
 Reference TypeScript orchestrator:
 
-- `reference/ai-sdlc-orchestrator/`
-- native Jira Cloud webhook normalization
-- trigger by configured AI SDLC assignee / assignee change
-- BullMQ/Redis queue adapter
-- PostgreSQL durable JobStore adapter
-- Phase 3 Context Resolver HTTP adapter
+- `reference/governance-mcp/` (job lifecycle tools)
+- scheduled Jira intake filtered by configured AI SDLC assignee and project allowlist
+- idempotent job creation on the intake event ID
+- PostgreSQL durable job store with server-validated state transitions
+- Effective Context resolution from governance SSOT
 - Jira REST comment/status synchronization
 - project-aware Jira destination-status mapping without hard-coded transition IDs
 - GitHub REST branch/PR adapter
@@ -183,7 +183,7 @@ Jira workflow evidence/configuration:
 
 CI validation:
 
-- `.github/workflows/phase4-orchestrator-validation.yml`
+- `.github/workflows/platform-runtime-validation.yml`
 - Phase 4 JSON schema validation
 - TypeScript typecheck/tests/build
 
@@ -202,24 +202,19 @@ Accepted architecture:
 The runtime explicitly separates deterministic control from model reasoning:
 
 ```text
-AI SDLC Control Plane
-  ├── Jira intake / idempotency
-  ├── durable job state / queue
-  ├── Effective Context / routing
-  ├── approval / authorization
-  └── PR / deployment boundaries
-             ↓
-Trusted Agent Runner
-             ↓
 Hermes Execution Plane
   ├── ANALYZE   read-only
   ├── PLAN      read-only
   └── IMPLEMENT controlled file edits
-             ↓
-Trusted Agent Runner
-  ├── independent changed-file verification
-  ├── independent quality gates
-  └── Git commit/push
+             ↓ MCP
+governance-mcp
+  ├── Jira intake / idempotency
+  ├── durable job state, server-validated transitions
+  ├── Effective Context / routing
+  ├── approval / authorization
+  ├── quality gates + recorded verdicts
+  ├── Git commit/push
+  └── PR / deployment boundaries
              ↓
 Pull Request
 ```
@@ -238,7 +233,7 @@ Accepted architecture and policy:
 
 Reference implementation:
 
-- `reference/ai-sdlc-mcp/`
+- `reference/governance-mcp/`
 - MCP TypeScript SDK v2 server factory
 - immutable job-scoped execution scope
 - Effective Context/Jira read tools
@@ -249,21 +244,17 @@ Reference implementation:
 - scoped sanitized Jira comment tool
 - repository/path/phase/branch guards
 - hard no-merge/no-production/no-production-secret authority
-- regression tests and `.github/workflows/ai-sdlc-mcp-validation.yml`
+- regression tests and `.github/workflows/platform-runtime-validation.yml`
 
 The standard Hermes integration path is now:
 
 ```text
-Jira / GitHub
-     ↓
-AI SDLC Control Plane
-     ↓ immutable scope / approvals
-Trusted Agent Runner
+Jira / GitHub / LINE
      ↓
 Hermes Execution Plane
-     ↓ native MCP client
-AI SDLC MCP Tool Boundary
-     ↓ server-side authorization
+     ↓ native MCP client, signed job token
+governance-mcp tool boundary
+     ↓ server-side scope / phase / permission authorization
 Context / Jira / repository / quality gates / controlled Git requests
      ↓
 Pull Request
@@ -273,7 +264,7 @@ Human + GitHub Actions
 DEV / UAT / PROD
 ```
 
-MCP is a capability facade that reduces provider/tool integration complexity. It does not replace the Control Plane, JobStore, Effective Context, Trusted Agent Runner or human production boundary.
+MCP is a capability facade that reduces provider/tool integration complexity. It does not replace the job store, Effective Context, the recorded quality verdict, or the human production boundary — ADR-GLOBAL-010 moved those into `governance-mcp` rather than removing them.
 
 ### Phase 5 — Module / New Project Automation — Complete
 
@@ -286,7 +277,7 @@ Governance/contracts:
 
 Reference TypeScript service:
 
-- `reference/project-automation/`
+- `reference/governance-mcp/` (`create_plan`)
 - idempotent durable plan creation
 - Effective Context gate for New Module
 - Phase 4 execution handoff after plan approval
@@ -310,7 +301,7 @@ Governance/contracts:
 
 Runtime/reference implementation:
 
-- `reference/hermes-governance/`
+- `reference/governance-mcp/` (`record_observation`, `propose_skill_change`)
 - `hermes/skills/engineering-governance/SKILL.md`
 - non-authoritative memory with provenance, lifecycle, expiry, and secret rejection
 - observation → proposal → evaluation → human approval → publication loop
@@ -323,17 +314,66 @@ Docker/runtime:
 
 - `compose.yaml`
 - `.env.example` plus a local ignored `.env`
-- `operations/phase5-6-docker-runtime.md`
-- PostgreSQL, Phase 5, and Phase 6 start with `docker compose up -d --build`
-- Hermes Chat and Hermes Coder run as separate containers; generated skills are mounted read-only
+- `operations/production-runtime.md`
+- generated skills are mounted read-only
 
-### LINE workflow control and reporting runtime
+### Phase 4.3 — Hermes-First Consolidation — Complete
 
-- `reference/workflow-control/` provides allowlisted LINE identity/role resolution, short-lived signed principals, immutable action drafts and private confirmation
-- `reference/agent-runner/` provides isolated repository workspaces and independently verified Git/test evidence around Hermes execution
-- `reference/rpa-reporting/` provides idempotent RPA/workflow event ingestion, PostgreSQL aggregation, a notification outbox, scheduled reports, alert deduplication, retry and dead-letter handling
-- Caddy publishes only HTTPS webhook routes; internal APIs remain on the Compose backend network
-- Hermes bundled LINE adapter handles signed inbound webhooks while the central Hermes LINE delivery adapter owns sanitized outbound push delivery
+Accepted architecture decision:
+
+- `decisions/adr/global/ADR-GLOBAL-010-hermes-first-consolidation.md`
+
+The runtime is **four long-running services**: `caddy`, `postgres`, `hermes` and
+`governance-mcp`. Eight hand-written services were consolidated into one
+deterministic boundary; Redis, BullMQ and all inter-service HTTP authentication
+were removed.
+
+```text
+LINE ──► caddy ──► hermes  (execution plane)
+                    │  reasoning, orchestration, scheduling, formatting
+                    │  skills + memory + cron
+                    │
+                    │  MCP — carries no provider credential
+                    ▼
+              governance-mcp  (deterministic boundary)
+                    │  credential custody, human approval, quality verdicts,
+                    │  Git authority, delivery guarantees
+                    ▼
+                 postgres
+```
+
+**Hermes owns** the order in which steps run, analysis, planning and
+implementation, scheduling through native cron, report rendering, PR and Jira
+prose, and project scaffolding written from the registered archetype.
+
+**`governance-mcp` owns** everything an incorrect model output must not be able
+to cause:
+
+- Jira, GitHub and LINE-push credentials — Hermes holds none of them, and the
+  Git credential never reaches the workspace
+- human approval: draft/confirm with TTL, idempotency, role checks and the
+  1:1-confirmation rule
+- quality-gate execution and the *recorded* verdict that gates commit, push and
+  PR — an agent asserting that tests passed is not evidence
+- Git commit and push, only to the pre-approved working branch; merge is never
+  exposed as a tool
+- job state transitions, validated against the state machine
+- Effective Context resolution, routing and conflict decisions
+- a transactional outbox with retry, backoff and dead-lettering
+- idempotency keys, dedup windows and secret redaction
+
+Execution scope is a per-call HMAC-signed job token minted in
+`prepare_workspace` from Effective Context. Hermes carries it but cannot mint
+one or widen the one it holds.
+
+Supporting governance:
+
+- `reference/governance-mcp/`
+- `ssot/mcp/ai-sdlc-tools.yaml` — the tool allowlist, enforced against
+  `hermes/config.yaml` and the server source by CI
+- `hermes/cron/jobs.json` — seeded schedules for Jira intake and the daily,
+  weekly and monthly RPA reports
+- `.github/workflows/platform-runtime-validation.yml`
 
 ## Organization default project archetypes
 
@@ -360,7 +400,7 @@ Supporting governance:
 - `schemas/rpa-run-event.schema.json`
 - `templates/rpa-report-summary.md`
 
-RPA bots emit normalized run events to a central reporting service. The central service stores history, creates daily/weekly/monthly summaries in `Asia/Bangkok`, and delivers reports through the **LINE Messaging API / LINE Official Account**. Bots must not own LINE credentials or independent scheduled-report logic.
+RPA bots emit normalized run events through `ingest_rpa_event`, which stores history and deduplicates on `event_id`. A Hermes scheduled task renders the daily, weekly and monthly summaries in `Asia/Bangkok` and delivers them through the deterministic outbox to the **LINE Messaging API / LINE Official Account**. Bots must not own LINE credentials or independent scheduled-report logic.
 
 ## Planned evolution
 
@@ -393,31 +433,28 @@ Phase 6    Hermes Skills / Memory / continuous improvement COMPLETE
 Production runtime:
 
 ```text
-Docker Compose / internal runtime
-   ├── Context Resolver
-   ├── Redis / BullMQ
-   ├── PostgreSQL JobStore
-   ├── Jira webhook + AI assignee
-   ├── GitHub App + webhook
-   ├── AI SDLC Control Plane
-   ├── trusted Agent Runner
-   ├── Hermes Execution Plane (Analyze / Plan / Implement)
-   ├── AI SDLC MCP Tool Boundary
-   ├── LINE Workflow Control
-   ├── central RPA reporting
-   ├── Caddy HTTPS ingress
-   └── health / retry / dead-letter / audit controls
+Docker Compose / internal runtime — four services
+   ├── caddy            HTTPS ingress, LINE webhook only
+   ├── postgres         jobs, actions, plans, learning, events, outbox, audit
+   ├── hermes           execution plane: analyze / plan / implement,
+   │                    skills, memory, cron intake and reports
+   └── governance-mcp   deterministic boundary
+        ├── provider credentials (Jira / GitHub / LINE push)
+        ├── Effective Context + routing
+        ├── human approval: draft / confirm
+        ├── quality gates + recorded verdicts
+        ├── Git commit / push, PR (never merge)
+        └── outbox: retry / dead-letter / audit
 ```
 
 Central reporting:
 
 ```text
-RPA Reporting Service
-   ├── event ingestion API
-   ├── durable reporting store
-   ├── daily/weekly/monthly aggregator
-   ├── LINE Messaging adapter
-   └── dashboard/evidence links (future)
+governance-mcp                     hermes
+   ├── ingest_rpa_event               ├── cron: daily / weekly / monthly
+   ├── durable reporting store        ├── rpa-reporting skill renders
+   ├── query_rpa_metrics       ◄──────┘   the summary
+   └── send_line_message → outbox → LINE Messaging API
 ```
 
 ## Governance rule

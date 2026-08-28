@@ -11,7 +11,16 @@ related_adr:
   - ADR-GLOBAL-004
   - ADR-GLOBAL-005
   - ADR-GLOBAL-008
+amended_by:
+  - ADR-GLOBAL-010
 ---
+
+> **Amended by ADR-GLOBAL-010.** The tool boundary, the approved tool classes
+> and the forbidden-tool list below are unchanged and remain absolute. The
+> "job-scoped server rule" changed: scope binding is now a per-call HMAC-signed
+> job token rather than a per-job server instance, because the boundary runs as
+> one long-lived shared server. ADR-GLOBAL-010 records that trade-off and its
+> mitigations.
 
 # Context
 
@@ -119,4 +128,4 @@ The MCP boundary is intentionally independent from Hermes. Another MCP-capable a
 - `policies/ai-sdlc-mcp.md`
 - `ssot/mcp/ai-sdlc-tools.yaml`
 - `schemas/ai-sdlc-mcp-scope.schema.json`
-- `reference/ai-sdlc-mcp/`
+- `reference/governance-mcp/`

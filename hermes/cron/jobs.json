@@ -1,0 +1,34 @@
+[
+  {
+    "id": "jira-intake",
+    "name": "AI SDLC Jira intake",
+    "schedule": "*/15 * * * *",
+    "skills": ["engineering-governance", "ai-sdlc-execution"],
+    "repeat": null,
+    "prompt": "Run one AI SDLC intake sweep. Call list_ready_jira_issues with lookback_minutes 20. For each issue returned: call create_job with the supplied intake_event_id, issue key and work_type (it is idempotent, so an already-seen intake event returns the existing job and must not be processed again). For a job still in RECEIVED, call get_effective_context for the issue. If decision.can_plan is false or any conflict is blocking, call record_job_state with WAITING_INFORMATION and the reason, add_jira_comment explaining exactly what is missing, and stop on that issue. Otherwise call record_job_state with RESOLVING_CONTEXT then ANALYZING, and follow the ai-sdlc-execution skill for the analyze phase. Never move a job past PLANNING into CODING for new_module or new_project work without a recorded human approval. Report a one-line summary per issue. If list_ready_jira_issues returns no issues, do nothing and say so."
+  },
+  {
+    "id": "rpa-report-daily",
+    "name": "RPA daily report",
+    "schedule": "0 9 * * *",
+    "skills": ["rpa-reporting"],
+    "repeat": null,
+    "prompt": "Produce the RPA daily report. The period is the 24 hours ending at 09:00 Asia/Bangkok today: call query_rpa_metrics with from = yesterday 09:00 and to = today 09:00, both as ISO 8601 timestamps with the +07:00 offset. Render the result using the rpa-reporting skill's daily format. Send it with send_line_message using idempotency_key 'report:daily:<the from timestamp>' so a re-run cannot deliver a duplicate. Do not invent numbers: report exactly the counts and success_rate returned by the tool, and if every count is zero say that no runs were recorded."
+  },
+  {
+    "id": "rpa-report-weekly",
+    "name": "RPA weekly report",
+    "schedule": "5 9 * * 1",
+    "skills": ["rpa-reporting"],
+    "repeat": null,
+    "prompt": "Produce the RPA weekly report. The period is the 7 days ending at 09:00 Asia/Bangkok today: call query_rpa_metrics with from = 7 days ago 09:00 and to = today 09:00, both as ISO 8601 timestamps with the +07:00 offset. Render the result using the rpa-reporting skill's weekly format. Send it with send_line_message using idempotency_key 'report:weekly:<the from timestamp>' so a re-run cannot deliver a duplicate. Do not invent numbers: report exactly the counts and success_rate returned by the tool, and if every count is zero say that no runs were recorded."
+  },
+  {
+    "id": "rpa-report-monthly",
+    "name": "RPA monthly report",
+    "schedule": "10 9 1 * *",
+    "skills": ["rpa-reporting"],
+    "repeat": null,
+    "prompt": "Produce the RPA monthly report. The period is the previous calendar month in Asia/Bangkok: call query_rpa_metrics with from = the 1st of last month at 00:00 and to = the 1st of this month at 00:00, both as ISO 8601 timestamps with the +07:00 offset. Render the result using the rpa-reporting skill's monthly format. Send it with send_line_message using idempotency_key 'report:monthly:<the from timestamp>' so a re-run cannot deliver a duplicate. Do not invent numbers: report exactly the counts and success_rate returned by the tool, and if every count is zero say that no runs were recorded."
+  }
+]

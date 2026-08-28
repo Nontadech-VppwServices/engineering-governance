@@ -1,0 +1,61 @@
+name: Governance Validation
+
+on:
+  push:
+    branches: [main]
+    paths: ['schemas/**','ssot/**','policies/**','decisions/**','templates/**','.github/workflows/governance-validation.yml']
+  pull_request:
+    paths: ['schemas/**','ssot/**','policies/**','decisions/**','templates/**']
+
+permissions: { contents: read }
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+
+      - name: JSON schemas parse
+        run: |
+          node -e "
+          const fs=require('fs');
+          const files=fs.readdirSync('schemas').filter(f=>f.endsWith('.schema.json'));
+          for(const f of files) JSON.parse(fs.readFileSync('schemas/'+f,'utf8'));
+          console.log(files.length+' schemas ok');
+          "
+
+      - name: SSOT YAML parses
+        run: |
+          npm install --no-save --silent yaml@2
+          node -e "
+          const fs=require('fs'), path=require('path'), yaml=require('yaml');
+          let n=0;
+          (function walk(dir){
+            for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
+              const p=path.join(dir,entry.name);
+              if(entry.isDirectory()) walk(p);
+              else if(/\.ya?ml\$/.test(entry.name)){ yaml.parse(fs.readFileSync(p,'utf8')); n++; }
+            }
+          })('ssot');
+          console.log(n+' SSOT files ok');
+          "
+
+      - name: Accepted ADRs carry required front matter
+        run: |
+          node -e "
+          const fs=require('fs'), path=require('path');
+          const dir='decisions/adr/global';
+          let n=0;
+          for(const f of fs.readdirSync(dir).filter(f=>f.startsWith('ADR-'))){
+            const text=fs.readFileSync(path.join(dir,f),'utf8');
+            const m=text.match(/^---\n([\s\S]*?)\n---/);
+            if(!m) throw new Error(f+' has no front matter');
+            for(const key of ['id:','title:','status:','scope:','date:']){
+              if(!m[1].includes(key)) throw new Error(f+' missing '+key);
+            }
+            n++;
+          }
+          console.log(n+' ADRs ok');
+          "

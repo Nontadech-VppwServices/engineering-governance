@@ -1,43 +1,108 @@
 name: Platform Runtime Validation
+
 on:
   push:
     branches: [main]
-    paths: ['reference/**','compose.yaml','Caddyfile','.env.example','hermes/**','schemas/**','policies/hermes-execution-plane.md','decisions/adr/global/ADR-GLOBAL-008-hermes-execution-plane.md','.github/workflows/platform-runtime-validation.yml']
+    paths:
+      - 'reference/**'
+      - 'compose.yaml'
+      - 'Caddyfile'
+      - '.env.example'
+      - 'hermes/**'
+      - '.github/workflows/platform-runtime-validation.yml'
   pull_request:
-    paths: ['reference/**','compose.yaml','Caddyfile','.env.example','hermes/**','schemas/**','policies/hermes-execution-plane.md','decisions/adr/global/ADR-GLOBAL-008-hermes-execution-plane.md']
+    paths:
+      - 'reference/**'
+      - 'compose.yaml'
+      - 'Caddyfile'
+      - '.env.example'
+      - 'hermes/**'
+
 permissions: { contents: read }
+
 jobs:
-  packages:
+  governance-mcp:
     runs-on: ubuntu-latest
-    strategy:
-      matrix: { service: [context-resolver, ai-sdlc-orchestrator, project-automation, hermes-governance, workflow-control, agent-runner, rpa-reporting] }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '22', cache: npm, cache-dependency-path: 'reference/${{ matrix.service }}/package-lock.json' }
+        with: { node-version: '22', cache: npm, cache-dependency-path: 'reference/governance-mcp/package-lock.json' }
       - run: npm ci
-        working-directory: reference/${{ matrix.service }}
+        working-directory: reference/governance-mcp
       - run: npm run typecheck
-        working-directory: reference/${{ matrix.service }}
+        working-directory: reference/governance-mcp
       - run: npm test
-        working-directory: reference/${{ matrix.service }}
+        working-directory: reference/governance-mcp
       - run: npm run build
-        working-directory: reference/${{ matrix.service }}
-  contracts-and-images:
+        working-directory: reference/governance-mcp
+
+  runtime:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: node -e "for(const f of require('fs').readdirSync('schemas').filter(x=>x.endsWith('.schema.json'))) JSON.parse(require('fs').readFileSync('schemas/'+f,'utf8'))"
       - run: cp .env.example .env && docker compose config --quiet
-      - name: Validate Hermes execution-plane wiring
+
+      - name: Every mounted skill exists
         run: |
-          test -f hermes/skills/ai-sdlc-execution/SKILL.md
-          docker compose config | grep -F '/opt/data/skills/ai-sdlc-execution'
-      - run: docker compose build context-resolver phase4-ai-sdlc phase5-project-automation phase6-hermes-governance workflow-control agent-runner rpa-reporting reporting-worker hermes-line-delivery
+          for skill in engineering-governance ai-sdlc-execution rpa-reporting; do
+            test -f "hermes/skills/$skill/SKILL.md"
+            docker compose config | grep -F "/opt/data/skills/$skill"
+          done
+
+      - name: Seeded cron jobs are valid and name real skills
+        run: |
+          node -e "
+          const fs=require('fs');
+          const jobs=JSON.parse(fs.readFileSync('hermes/cron/jobs.json','utf8'));
+          if(!Array.isArray(jobs)||!jobs.length) throw new Error('no cron jobs seeded');
+          for(const job of jobs){
+            for(const key of ['id','schedule','prompt']) if(!job[key]) throw new Error(job.id+' missing '+key);
+            for(const skill of job.skills??[]) if(!fs.existsSync('hermes/skills/'+skill+'/SKILL.md')) throw new Error(job.id+' names unknown skill '+skill);
+          }
+          console.log('cron jobs ok:', jobs.map(j=>j.id).join(', '));
+          "
+
+      # The tool surface is governance, not implementation detail: config, SSOT
+      # and code must agree, and no forbidden tool may appear anywhere.
+      - name: MCP tool surface matches the governed allowlist
+        run: |
+          npm --prefix reference/governance-mcp ci --silent
+          node -e "
+          const fs=require('fs');
+          const yaml=require('./reference/governance-mcp/node_modules/yaml');
+          const ssot=yaml.parse(fs.readFileSync('ssot/mcp/ai-sdlc-tools.yaml','utf8'));
+          const allow=[...ssot.read_tools,...ssot.controlled_action_tools].map(t=>t.name).sort();
+          const cfg=yaml.parse(fs.readFileSync('hermes/config.yaml','utf8'));
+          const include=[...cfg.mcp_servers.governance.tools.include].sort();
+          const src=fs.readFileSync('reference/governance-mcp/src/server.ts','utf8');
+          const registered=[...src.matchAll(/\n  tool\(\n    '([a-z_]+)'/g)].map(m=>m[1]).sort();
+          const diff=(a,b)=>a.filter(x=>!b.includes(x));
+          const problems=[
+            ['allowlisted but not registered', diff(allow,registered)],
+            ['registered but not allowlisted', diff(registered,allow)],
+            ['allowlisted but not enabled in hermes config', diff(allow,include)],
+            ['enabled in hermes config but not allowlisted', diff(include,allow)],
+            ['forbidden tool registered', ssot.forbidden_tools.filter(f=>registered.includes(f))],
+          ].filter(([,v])=>v.length);
+          if(problems.length) throw new Error(problems.map(([k,v])=>k+': '+v.join(',')).join(' | '));
+          console.log('tool surface consistent:', registered.length, 'tools');
+          "
+
+      - name: Hermes holds no provider credential
+        run: |
+          node -e "
+          const fs=require('fs');
+          const yaml=require('./reference/governance-mcp/node_modules/yaml');
+          const env=yaml.parse(fs.readFileSync('compose.yaml','utf8')).services.hermes.environment;
+          const leaked=Object.keys(env).filter(k=>/^(JIRA_|GITHUB_TOKEN|.*SIGNING_SECRET|LINE_IDENTITIES_JSON)/.test(k));
+          if(leaked.length) throw new Error('provider credentials exposed to Hermes: '+leaked.join(','));
+          console.log('hermes credential isolation ok');
+          "
+
       - name: Compose smoke test
         run: |
-          sed -i 's/^PUBLIC_DOMAIN=.*/PUBLIC_DOMAIN=localhost/; s/^AGENT_MODE=.*/AGENT_MODE=mock/' .env
+          sed -i 's/^PUBLIC_DOMAIN=.*/PUBLIC_DOMAIN=localhost/' .env
           docker compose up -d --build --wait
           curl --fail --silent --show-error --insecure https://localhost/healthz
       - if: always()
-        run: docker compose down
+        run: docker compose down -v

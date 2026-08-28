@@ -8,6 +8,10 @@ Defines the organization-wide operational reporting contract for RPA/automation 
 
 RPA projects report execution results to a central RPA Reporting Service. Individual bots should not own LINE integration, report schedules, aggregate query logic, or LINE credentials.
 
+Reporting is split by the ADR-GLOBAL-010 rule. Hermes owns *when* a report runs and *how it reads*: a scheduled task calls `query_rpa_metrics` and renders the summary with the `rpa-reporting` skill. `governance-mcp` owns what must not depend on model behaviour: `ingest_rpa_event` with `event_id` deduplication, aggregation, and a transactional outbox with retry, backoff and dead-lettering behind `send_line_message`.
+
+There is no report scheduler, no delivery sidecar and no separate reporting API. Report timing lives in `hermes/cron/jobs.json`; delivery reliability does not.
+
 ```text
 Bot -> Reporting API -> Reporting Store -> Aggregator -> LINE Messaging API
 ```
@@ -62,6 +66,8 @@ Raw stack traces remain in controlled application logs/evidence storage, not LIN
 ## Report schedules
 
 Timezone: `Asia/Bangkok`.
+
+The published Hermes schedule is the execution entry point for each report. The reporting runtime retains deterministic period calculation, idempotency, outbox persistence, retry/backoff, dead-letter handling, and LINE delivery. Creating, changing, pausing, or revoking a schedule follows `policies/hermes-scheduling-governance.md`.
 
 The Reporting Service generates:
 

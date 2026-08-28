@@ -1,7 +1,7 @@
 ---
 name: ai-sdlc-execution
-description: Execute governed AI SDLC ANALYZE, PLAN, and IMPLEMENT phases inside an assigned repository workspace using the AI SDLC MCP capability boundary without taking control-plane authority.
-version: 1.1.0
+description: Drive the governed AI SDLC lifecycle end to end - intake, analyze, plan, implement, verify and pull request - through the governance MCP boundary without taking control-plane authority.
+version: 2.0.0
 author: Engineering Governance
 license: Proprietary
 platforms: [linux, macos]
@@ -13,92 +13,75 @@ metadata:
 
 # AI SDLC Execution
 
-Use this skill when the trusted Agent Runner supplies an AI SDLC execution request.
+Use this skill for any Jira-driven engineering job, whether it arrives from the scheduled intake sweep or from a person.
 
-The request's Effective Context, repository, execution phase and constraints define the allowed scope. Do not expand scope based on memory or inference.
+You drive the sequence. The boundary decides what is permitted. Effective Context, the job state machine and the recorded quality verdicts outrank this skill and your memory.
 
-For external engineering facts/actions, prefer the governed AI SDLC MCP tools exposed to the Hermes profile. Do not build ad-hoc Jira/GitHub/provider integrations inside a skill.
+## Lifecycle
 
-## Common procedure
+Advance the job with `record_job_state` at each step. An illegal transition is rejected server-side — if that happens, re-read the job with `get_job` rather than working around it.
 
-1. Read the supplied Jira objective and Effective Context.
-2. Confirm the assigned repository/workspace and execution phase.
-3. Use `get_effective_context` / `get_jira_issue` when live governed context is needed.
-4. Inspect relevant repository code/config/tests using the assigned workspace or scoped MCP repository read/search tools.
-5. Prefer evidence from the repository, live Jira and Effective Context over memory.
-6. Report conflicts, ambiguity or missing authority instead of silently guessing.
-7. Never use provider credentials, merge, deploy, or alter production state.
-8. Treat an MCP denial as an authoritative execution-boundary decision; do not attempt to bypass it with another tool or shell path.
+1. **Intake** — `create_job` with the intake event, issue key and work type. It is idempotent; an existing job comes back unchanged and must not be reprocessed.
+2. **Resolve context** — `get_effective_context`. If `decision.can_plan` is false or any conflict is `blocking`, move to `WAITING_INFORMATION`, `add_jira_comment` stating exactly what is missing, and stop. Do not guess the missing value.
+3. **Analyze** — `prepare_workspace` with phase `analyze`, then investigate. Move to `ANALYZING`.
+4. **Plan** — move to `PLANNING` and produce the plan. For `new_module` and `new_project`, `create_plan` and stop at `WAITING_PLAN_APPROVAL`. A plan is not an approval.
+5. **Implement** — only after approval where approval is required. `prepare_workspace` with phase `implement`, then edit files in the returned workspace path. Move to `CODING`.
+6. **Verify** — move to `TESTING` and run every gate in `required_gates` with `run_quality_gate`. Fix real failures and re-run. Never weaken a test or a gate to make it pass.
+7. **Deliver** — `commit_and_push`, then `create_pull_request`, moving through `CREATING_PR` to `WAITING_REVIEW`. Comment the PR link back with `add_jira_comment`.
+
+Merge is not part of this lifecycle. A merged PR is observed, never caused.
+
+## Workspace and phases
+
+`prepare_workspace` returns the workspace path, the approved working branch, the required gates, and the `job_token` every other scoped tool needs. The token encodes the phase and the repository allowlist; you carry it but cannot alter it.
+
+- `analyze` and `plan`: the workspace is read-only. Git write tools are refused by phase, not by convention.
+- `implement`: edit only files required for the current objective, inside the assigned workspace.
 
 ## ANALYZE
 
-The workspace is read-only for this phase.
-
-Investigate the issue and return a concise evidence-backed analysis containing:
+Return a concise, evidence-backed analysis containing:
 
 - likely root cause or impact area;
 - relevant files/modules/functions;
-- evidence that supports the finding;
+- the evidence that supports the finding;
 - uncertainties or missing information;
 - whether another routed repository also appears relevant;
 - recommended next step.
 
-Allowed MCP capabilities are read/scoped inspection only. Do not request branch/commit/push/PR mutation tools.
-
-Do not modify files. If the issue appears routed incorrectly, report `routing_conflict_candidate`; do not switch repositories.
+If the issue appears routed incorrectly, report `routing_conflict_candidate`. Do not switch repositories.
 
 ## PLAN
 
-The workspace is read-only for this phase.
+Produce a plan containing:
 
-Produce an implementation plan containing:
-
-- intended behavior/change;
+- intended behaviour/change;
 - implementation steps;
 - likely files/modules affected;
-- tests/quality gates that should verify the change;
+- tests and quality gates that should verify the change;
 - compatibility/migration risks;
 - dependencies and unresolved questions;
 - architecture/BDR/ADR implications if any.
 
-A plan is not approval. Stop after producing the plan. MCP mutation tools remain out of scope.
+Stop after producing the plan.
 
 ## IMPLEMENT
 
-Modify only files required for the approved/current objective inside the assigned workspace.
+- Keep changes scoped to the Jira objective.
+- Preserve existing architecture and accepted governance.
+- Add or update automated tests where appropriate.
+- Do not weaken existing tests or gates.
+- Do not edit unrelated repositories.
 
-Before finishing:
-
-- keep changes scoped to the Jira objective;
-- preserve existing architecture and accepted governance;
-- add/update automated tests where appropriate;
-- do not weaken existing tests or quality gates to make them pass;
-- do not edit unrelated repositories;
-- use only named governed quality gates; never pass arbitrary shell commands to an MCP service;
-- allow Trusted Runner/MCP server-side policy to decide whether commit/push/PR requests are permitted.
-
-Hermes never receives GitHub/Jira provider credentials. A controlled MCP action is a request to the trusted boundary, not authority owned by Hermes.
-
-Return a concise implementation summary and any relevant caveats.
+`commit_and_push` and `create_pull_request` are refused until every required gate has a *recorded* passing verdict. Claiming tests passed does not satisfy that; running `run_quality_gate` does. If a gate cannot pass, say so and stop — a blocked job is a correct outcome.
 
 ## MCP surface
 
-Expected governed tools may include:
+Read: `get_effective_context`, `get_jira_issue`, `search_repository`, `read_repository_file`, `get_job`, `get_pull_request_status`
 
-- `get_effective_context`
-- `get_jira_issue`
-- `search_repository`
-- `read_repository_file`
-- `run_quality_gate`
-- `ensure_working_branch`
-- `commit_verified_changes`
-- `push_working_branch`
-- `create_pull_request`
-- `add_jira_comment`
+Controlled: `create_job`, `record_job_state`, `prepare_workspace`, `run_quality_gate`, `commit_and_push`, `create_pull_request`, `add_jira_comment`, `sync_jira_state`, `create_plan`
 
-The exact production tool allowlist is `ssot/mcp/ai-sdlc-tools.yaml`.
-
-Tools such as merge, production deploy, production-secret retrieval, arbitrary control-plane shell, routing mutation, ADR/BDR acceptance or human-approval mutation must not exist in the engineering MCP surface.
+The production allowlist is `ssot/mcp/ai-sdlc-tools.yaml`. Merge, production deploy, production-secret retrieval, arbitrary shell, routing mutation, ADR/BDR acceptance and human-approval mutation are not in the surface and must not be sought by other means.
 
 ## Hard boundaries
 
@@ -108,4 +91,4 @@ Tools such as merge, production deploy, production-secret retrieval, arbitrary c
 - Do not bypass routing conflicts or unresolved authority.
 - Do not expose secrets in output.
 - Do not merge PRs or deploy production.
-- Do not bypass MCP scope/permission denials.
+- Do not bypass an MCP scope, phase or permission denial.

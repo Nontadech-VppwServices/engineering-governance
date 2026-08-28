@@ -1,4 +1,4 @@
-# Phase 5–6 Docker Runtime
+# Docker Runtime
 
 ## Configuration
 
@@ -12,28 +12,45 @@ docker compose ps
 curl --insecure https://localhost/healthz
 ```
 
-This starts PostgreSQL, Redis, Context Resolver, Phase 4–6, Workflow Control, Agent Runner, reporting, Hermes Chat/Coder and Caddy. Only HTTPS ingress is published; data is retained in named volumes.
+This starts four long-running services: `caddy`, `postgres`, `governance-mcp`
+and `hermes`. `hermes-data-init` runs once successfully before Hermes starts.
+Only HTTPS ingress is published; data is retained in named volumes.
 
-Phase 4, Phase 5 and deployment state changes are posted to the reporting service as versioned workflow events. Each accepted event creates at most one outbox delivery. After publishing a generated skill, use Hermes Chat `/reload-skills` in a private admin session and restart only `hermes-coder` to perform the controlled live reload.
+`governance-mcp` applies `sql/001_governance.sql` on start. The migration is
+idempotent and preserves the table names used by the services it replaced, so an
+existing database migrates in place.
+
+Scheduled work follows `policies/hermes-scheduling-governance.md`: Hermes cron
+owns timing, while approval, credentials, idempotency, retry and delivery remain
+deterministic inside `governance-mcp`.
 
 ## Configure Hermes
 
-Hermes Chat and Hermes Coder are separate default services. Configure a supported provider and LINE Messaging API values in `.env` before connecting the public webhook.
+Hermes is one service for chat and coding execution. Configure a model provider
+and the LINE Messaging API values in `.env` before connecting the public webhook.
 
 ```bash
-docker compose up -d hermes-chat hermes-coder
+docker compose up -d hermes
 ```
 
-Set at least one supported model-provider key in `.env` before starting Hermes. The official image stores sessions, memory, config, and installed skills under the persistent `/opt/data` volume. The governance repository is mounted read-only.
+The official image stores sessions, memory, config, cron jobs and installed
+skills under the persistent `/opt/data` volume. The governance repository is
+mounted read-only at `/governance`, and job workspaces are shared with
+`governance-mcp` at `/workspaces`.
 
-The initialization service prepares writable Hermes data volumes. The governed seed skill and approved generated-skill volume are mounted read-only; a newly published generated skill is visible to new Hermes sessions without copying it into a second volume.
+`hermes-data-init` redeploys `config.yaml` on every start, and seeds
+`cron/jobs.json` only when it is absent. Skills are mounted read-only, so a
+newly published generated skill is visible to new sessions without a copy step.
 
 ```bash
-docker compose restart hermes-chat hermes-coder
+docker compose restart hermes
 ```
 
-Chat and Coder use distinct data volumes. Do not point them at the same `/opt/data`. Keep `HERMES_IMAGE` pinned to the reviewed digest.
+Keep `HERMES_IMAGE` pinned to the reviewed digest.
 
 ## Reset local development data
 
-`docker compose down` preserves data. `docker compose down -v` deletes PostgreSQL, Redis, workspaces, generated scaffolds, generated skills, Caddy state and Hermes state; use it only when that destructive reset is intended.
+`docker compose down` preserves data. `docker compose down -v` deletes
+PostgreSQL, workspaces, generated skills, Caddy state and Hermes state —
+including cron jobs and memory. Use it only when that destructive reset is
+intended.
