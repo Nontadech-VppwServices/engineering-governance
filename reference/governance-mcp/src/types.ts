@@ -2,7 +2,7 @@
 // persisted payload depends on the exact field names.
 
 export type ExecutionPhase = 'analyze' | 'plan' | 'implement';
-export type WorkType = 'bug' | 'new_module' | 'new_project' | 'analysis';
+export type WorkType = 'task';
 
 export type JobState =
   | 'RECEIVED'

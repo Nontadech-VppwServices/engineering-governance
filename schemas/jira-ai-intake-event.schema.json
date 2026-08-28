@@ -11,7 +11,7 @@
     "occurred_at": { "type": "string", "format": "date-time" },
     "issue_key": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]+-[0-9]+$" },
     "event_type": { "enum": ["issue_created", "issue_updated", "issue_assigned", "manual_trigger"] },
-    "work_type": { "type": ["string", "null"], "enum": ["bug", "new_module", "new_project", "analysis", null] },
+    "work_type": { "type": ["string", "null"], "enum": ["task", null] },
     "component": { "type": ["string", "null"] },
     "trigger_reason": { "type": ["string", "null"] },
     "plan_approved": { "type": "boolean", "default": false }

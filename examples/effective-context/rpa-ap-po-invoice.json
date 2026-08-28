@@ -16,7 +16,7 @@
     "status": "To Do",
     "issue_type": "Bug",
     "component": "AP_PO_INVOICE",
-    "work_type": "bug",
+    "work_type": "task",
     "retrieved_at": "2026-08-27T10:29:30+07:00"
   },
   "routing": {

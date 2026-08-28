@@ -195,7 +195,7 @@ export function createGovernanceMcpServer(deps: ServerDeps): McpServer {
     z.object({
       intake_event_id: z.string().min(1),
       jira_issue_key: z.string().min(3),
-      work_type: z.enum(['bug', 'new_module', 'new_project', 'analysis']),
+      work_type: z.literal('task'),
     }),
     async ({ intake_event_id, jira_issue_key, work_type }) => {
       const existing = await store.findJobByIntakeEvent(intake_event_id);
@@ -252,7 +252,7 @@ export function createGovernanceMcpServer(deps: ServerDeps): McpServer {
 
   tool(
     'prepare_workspace',
-    'Clone the routed repository into the job workspace and mint the scoped job token used by every other execution tool.',
+    'Clone one repository returned by Effective Context into the job workspace and mint the scoped job token. Always provide job_id, repository, and execution_phase (analyze, plan, or implement); omitted scope values are rejected.',
     z.object({
       job_id: z.string().min(1),
       repository: z.string().min(3),

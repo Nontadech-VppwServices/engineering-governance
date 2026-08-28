@@ -9,7 +9,7 @@
     "schema_version": { "const": 1 },
     "job_id": { "type": "string", "minLength": 1 },
     "jira_issue_key": { "type": "string" },
-    "work_type": { "enum": ["bug", "new_module", "analysis"] },
+    "work_type": { "const": "task" },
     "execution_phase": {
       "enum": ["analyze", "plan", "implement"],
       "description": "Hermes execution phase. Omission is accepted for backward compatibility and is interpreted as implement by the trusted runner."

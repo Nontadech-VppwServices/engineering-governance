@@ -233,11 +233,10 @@ export function readValue(value: unknown): string | null {
 
 export function normalizeWorkType(value?: string | null, issueType?: string | null): string | null {
   const normalized = value?.trim().toLowerCase().replace(/[\s-]+/g, '_');
-  if (normalized === 'bug' || normalized === 'bug_fix') return 'bug';
-  if (normalized === 'new_module' || normalized === 'module') return 'new_module';
-  if (normalized === 'new_project' || normalized === 'project') return 'new_project';
-  if (normalized === 'analysis' || normalized === 'analysis_only') return 'analysis';
-  return issueType?.trim().toLowerCase() === 'bug' ? 'bug' : null;
+  if (normalized === 'task') return 'task';
+  const normalizedIssueType = issueType?.trim().toLowerCase().replace(/[\s-]+/g, '_');
+  if (normalizedIssueType === 'task') return 'task';
+  return null;
 }
 
 export function textFromJiraDocument(value: unknown): string | null {

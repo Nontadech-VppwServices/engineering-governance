@@ -148,6 +148,28 @@ Effective Context is a computed view, never a replacement for Jira/GitHub/ADR/BD
 
 Phase 4 has an executable runtime, Docker image, PostgreSQL migrations and a governed tool surface. Since Phase 4.3 the lifecycle is driven by the `ai-sdlc-execution` skill over `governance-mcp` rather than by a queue-backed orchestrator service. Connecting real Jira/GitHub credentials remains an operator activation step.
 
+#### Manual end-to-end run
+
+For one Jira issue, run the governed lifecycle manually from a terminal:
+
+```sh
+./bin/ai-sdlc-run PIM-611
+```
+
+The command delegates to Hermes one-shot mode and the `ai-sdlc-execution`
+skill. It resolves routing from Effective Context, edits only the assigned
+workspace, runs every required quality gate, and stops after creating the Pull
+Request. Repeated runs use the same idempotency key and return the existing job
+instead of replaying it.
+
+Routing conflicts, missing information, required plan approval, failed gates,
+and MCP denials stop the run with their authoritative state. The command
+accepts only a Jira issue key; repository, branch, scope, credentials, merge,
+and deployment remain controlled by Hermes and `governance-mcp`.
+
+The default Hermes executable is `hermes`. Set `HERMES_BIN` to use a different
+runner.
+
 Governance/contracts:
 
 - `decisions/adr/global/ADR-GLOBAL-005-phase4-ai-sdlc-orchestration.md`

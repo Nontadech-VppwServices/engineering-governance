@@ -11,7 +11,7 @@
     "project_id": { "type": ["string", "null"], "minLength": 1 },
     "work_type": {
       "type": ["string", "null"],
-      "enum": ["bug", "new_module", "new_project", "analysis", null]
+      "enum": ["task", null]
     },
     "target_branch": { "type": ["string", "null"] },
     "component": { "type": ["string", "null"] },

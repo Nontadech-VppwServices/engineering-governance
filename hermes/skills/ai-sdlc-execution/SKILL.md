@@ -17,15 +17,54 @@ Use this skill for any Jira-driven engineering job, whether it arrives from the 
 
 You drive the sequence. The boundary decides what is permitted. Effective Context, the job state machine and the recorded quality verdicts outrank this skill and your memory.
 
+## Manual end-to-end command
+
+The manual entry point for one Jira issue is:
+
+```text
+/run <JIRA-ISSUE-KEY>
+```
+
+An equivalent CLI trigger must submit the same issue key and an authenticated
+request context to Hermes; it must not call Jira, GitHub or this MCP boundary
+directly. The command is a request to start the lifecycle below, not permission
+to choose a repository, branch, work type, gate, approval or deployment target.
+
+For a valid command:
+
+1. Validate the issue-key shape before dispatching it.
+2. Read the issue with `get_jira_issue` and use its authoritative work type.
+  Call `create_job` with `intake_event_id`, `jira_issue_key`, and `work_type`.
+  Use a stable idempotency key such as `manual:<jira-issue-key>`. If an
+  existing non-terminal job is returned, resume from its recorded state; do
+  not create a second job or repeat completed transitions.
+3. Continue through the lifecycle until a terminal outcome is reached. For a
+  normal code-change issue, the successful outcome is `WAITING_REVIEW` with
+  one or more PR references.
+4. Return the job ID, current state, and PR reference when available. Never
+  report success from model text alone; use the MCP tool result as evidence.
+
+The command must stop and report the authoritative state when the boundary
+returns `WAITING_INFORMATION`, `WAITING_PLAN_APPROVAL`, a failed quality gate,
+or an MCP denial. A manual command never merges a PR or deploys production.
+
 ## Lifecycle
 
 Advance the job with `record_job_state` at each step. An illegal transition is rejected server-side — if that happens, re-read the job with `get_job` rather than working around it.
 
 1. **Intake** — `create_job` with the intake event, issue key and work type. It is idempotent; an existing job comes back unchanged and must not be reprocessed.
 2. **Resolve context** — `get_effective_context`. If `decision.can_plan` is false or any conflict is `blocking`, move to `WAITING_INFORMATION`, `add_jira_comment` stating exactly what is missing, and stop. Do not guess the missing value.
-3. **Analyze** — `prepare_workspace` with phase `analyze`, then investigate. Move to `ANALYZING`.
+3. **Analyze** — read `context.routing.repositories` and call
+  `prepare_workspace` with exactly `{ job_id, repository, execution_phase:
+  "analyze" }` for each routed repository. Never omit `repository` or
+  `execution_phase`, and never invent either value. Then investigate and move
+  to `ANALYZING`.
 4. **Plan** — move to `PLANNING` and produce the plan. For `new_module` and `new_project`, `create_plan` and stop at `WAITING_PLAN_APPROVAL`. A plan is not an approval.
-5. **Implement** — only after approval where approval is required. `prepare_workspace` with phase `implement`, then edit files in the returned workspace path. Move to `CODING`.
+5. **Implement** — only after approval where approval is required. Call
+  `prepare_workspace` with exactly `{ job_id, repository,
+  execution_phase: "implement" }`, using only the repository returned by
+  Effective Context. Then edit files in the returned workspace path and move
+  to `CODING`.
 6. **Verify** — move to `TESTING` and run every gate in `required_gates` with `run_quality_gate`. Fix real failures and re-run. Never weaken a test or a gate to make it pass.
 7. **Deliver** — `commit_and_push`, then `create_pull_request`, moving through `CREATING_PR` to `WAITING_REVIEW`. Comment the PR link back with `add_jira_comment`.
 

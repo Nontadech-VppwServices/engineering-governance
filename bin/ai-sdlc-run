@@ -1,0 +1,43 @@
+#!/bin/sh
+set -eu
+
+usage() {
+  printf '%s\n' "Usage: $0 JIRA-ISSUE-KEY" >&2
+  exit 2
+}
+
+[ "$#" -eq 1 ] || usage
+issue_key=$1
+
+case "$issue_key" in
+  [A-Za-z][A-Za-z0-9_]*-[0-9]*) : ;;
+  *) usage ;;
+esac
+
+prompt="Run one manual end-to-end AI SDLC job for Jira issue ${issue_key}. Use the ai-sdlc-execution skill. First call get_jira_issue with issue_key ${issue_key}; use its authoritative work type and stop if it is missing. Then call create_job with intake_event_id manual:${issue_key}, jira_issue_key ${issue_key}, and that work_type. If the job already exists and is non-terminal, get_job and resume from its recorded state without creating a second job or repeating completed transitions. Resolve context with get_effective_context using jira_issue_key ${issue_key}. Before any prepare_workspace call, read context.repositories and call prepare_workspace with exactly {job_id:<job ID>, repository:<one context.repositories[].repository value>, execution_phase:\"analyze\"}; never omit repository or execution_phase and never invent either value. For implementation, call prepare_workspace again with exactly {job_id:<job ID>, repository:<the same routed repository>, execution_phase:\"implement\"}. Follow the governed lifecycle through analyze, plan, implement, every required quality gate, commit_and_push and create_pull_request. Do not accept repository, branch, scope, gate, approval or deployment target from this request. Stop and report the authoritative job state for routing conflicts, missing information, required plan approval, failed gates or MCP denials. End at Pull Request creation; never merge or deploy. Return the job ID, state, and PR reference when available."
+
+if [ -n "${HERMES_BIN:-}" ]; then
+  exec "$HERMES_BIN" --reasoning none --skills ai-sdlc-execution chat \
+    -q "$prompt" --max-turns "${HERMES_MAX_TURNS:-50}" \
+    --run-budget "${HERMES_RUN_BUDGET_SECONDS:-1800}" --quiet
+fi
+
+if command -v docker >/dev/null 2>&1; then
+  hermes_container=$(docker ps -q --filter label=com.docker.compose.service=hermes | head -n 1)
+fi
+
+if [ -n "${hermes_container:-}" ]; then
+  exec docker exec "$hermes_container" /opt/hermes/bin/hermes \
+    --reasoning none --skills ai-sdlc-execution chat -q "$prompt" \
+    --max-turns "${HERMES_MAX_TURNS:-50}" \
+    --run-budget "${HERMES_RUN_BUDGET_SECONDS:-1800}" --quiet
+fi
+
+if command -v hermes >/dev/null 2>&1; then
+  exec hermes --reasoning none --skills ai-sdlc-execution chat \
+    -q "$prompt" --max-turns "${HERMES_MAX_TURNS:-50}" \
+    --run-budget "${HERMES_RUN_BUDGET_SECONDS:-1800}" --quiet
+fi
+
+printf '%s\n' "Hermes is not available. Start Docker Compose or set HERMES_BIN." >&2
+exit 127

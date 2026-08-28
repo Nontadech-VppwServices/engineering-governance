@@ -6,6 +6,9 @@ model:
   base_url: http://host.docker.internal:11434/v1
   context_length: 64000
 
+agent:
+  reasoning_effort: none
+
 gateway:
   platforms:
     line:

@@ -8,7 +8,7 @@ function job(state: AiSdlcJob['state'] = 'RECEIVED'): AiSdlcJob {
     job_id: 'job-1',
     intake_event_id: 'evt-1',
     jira_issue_key: 'RPA-100',
-    work_type: 'bug',
+    work_type: 'task',
     state,
     created_at: '2026-08-28T00:00:00.000Z',
     updated_at: '2026-08-28T00:00:00.000Z',
