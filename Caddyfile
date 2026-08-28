@@ -4,14 +4,6 @@
   handle @line {
     reverse_proxy hermes-chat:8646
   }
-  @jira path /webhooks/jira
-  handle @jira {
-    reverse_proxy workflow-control:8087
-  }
-  @github path /webhooks/github
-  handle @github {
-    reverse_proxy phase4-ai-sdlc:8084
-  }
   respond /healthz 200
   respond 404
 }

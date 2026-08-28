@@ -99,7 +99,7 @@ export class AiSdlcOrchestrator {
 
     job = transitionJob(job, 'CODING', 'ai');
     await this.ports.jobs.save(job);
-    return this.executeAndCreatePullRequests(job, issue.summary, context);
+    return this.executeAndCreatePullRequests(job, issue.summary, context, [issue.summary, issue.description].filter(Boolean).join('\n\n'));
   }
 
   async approvePlan(jobId: string): Promise<AiSdlcJob> {
@@ -123,7 +123,7 @@ export class AiSdlcOrchestrator {
 
     job = transitionJob(job, 'CODING', 'human', 'Human plan approval received.');
     await this.ports.jobs.save(job);
-    return this.executeAndCreatePullRequests(job, issue.summary, context);
+    return this.executeAndCreatePullRequests(job, issue.summary, context, [issue.summary, issue.description].filter(Boolean).join('\n\n'));
   }
 
   async getJob(jobId: string): Promise<AiSdlcJob | null> {
@@ -174,6 +174,7 @@ export class AiSdlcOrchestrator {
     startingJob: AiSdlcJob,
     issueSummary: string,
     context: EffectiveContextView,
+    requirement: string,
   ): Promise<AiSdlcJob> {
     let job = startingJob;
     const results: Array<{ result: AgentExecutionResult; baseBranch: string; branch: string }> = [];
@@ -191,6 +192,7 @@ export class AiSdlcOrchestrator {
         repository: routed.repository,
         base_branch: baseBranch,
         working_branch: branch,
+        requirement,
         effective_context: context,
         constraints: {
           allow_merge: false,

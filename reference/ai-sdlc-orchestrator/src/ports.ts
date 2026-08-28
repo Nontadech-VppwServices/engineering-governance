@@ -16,6 +16,7 @@ export interface JobStorePort {
   findByIntakeEventId(eventId: string): Promise<AiSdlcJob | null>;
   findById(jobId: string): Promise<AiSdlcJob | null>;
   findByPullRequest(repository: string, prNumber: number): Promise<AiSdlcJob | null>;
+  findByState(state: AiSdlcJob['state']): Promise<AiSdlcJob[]>;
   save(job: AiSdlcJob): Promise<void>;
 }
 
@@ -48,6 +49,7 @@ export interface GitHostPort {
 export interface JiraIssueSnapshot {
   issueKey: string;
   summary: string;
+  description?: string | null;
   status?: string | null;
   issueType?: string | null;
   projectKey?: string | null;

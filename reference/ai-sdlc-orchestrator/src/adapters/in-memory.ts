@@ -32,6 +32,10 @@ export class InMemoryJobStore implements JobStorePort {
     ) ?? null;
   }
 
+  async findByState(state: AiSdlcJob['state']): Promise<AiSdlcJob[]> {
+    return [...this.jobs.values()].filter((job) => job.state === state).map((job) => structuredClone(job));
+  }
+
   async save(job: AiSdlcJob): Promise<void> {
     this.jobs.set(job.job_id, structuredClone(job));
   }

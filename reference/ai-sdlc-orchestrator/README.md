@@ -5,7 +5,7 @@ This package implements the controlled Jira → AI → Git → PR workflow defin
 ## Runtime architecture
 
 ```text
-Native Jira webhook / normalized intake event
+Jira REST polling / normalized intake event
   ↓
 Assignee + project filter
   ↓
@@ -31,31 +31,30 @@ Pull Request(s)
   ↓
 JiraSyncPort
   ↓
-GitHub pull_request webhook
+GitHub REST pull request polling
   ↓
 DONE after all required PRs are human/policy merged
 ```
 
 ## Jira intake
 
-`POST /webhooks/jira` accepts either the normalized Phase 4 intake schema or a native Jira Cloud webhook payload.
+Phase 4 polls Jira REST on a configurable interval (default 15 minutes), filters eligible issues by project and AI assignee, and enqueues deterministic intake events.
 
-For native Jira events the normalizer intentionally starts work only when:
+`JIRA_POLL_INTERVAL_MS` controls the interval. Polling events use the Jira issue key and update timestamp as their idempotency key.
+
+Polling intentionally starts work only when:
 
 - an issue is created while assigned to a configured AI SDLC assignee; or
 - the assignee field changes to a configured AI SDLC assignee.
 
 Ordinary issue edits are ignored to avoid duplicate AI jobs.
 
-Recommended runtime configuration:
+Required polling configuration:
 
 ```ts
-jiraWebhook: {
-  targetAssigneeAccountIds: ['<JIRA_ACCOUNT_ID>'],
-  allowedProjectKeys: ['PIM', 'RPA', 'TMS', 'VESPISTI'],
-  componentFieldId: '<RPA_COMPONENT_CUSTOM_FIELD_ID>',
-  workTypeFieldId: '<AI_WORK_TYPE_CUSTOM_FIELD_ID>'
-}
+JIRA_POLL_INTERVAL_MS=900000
+JIRA_AI_ASSIGNEE_ACCOUNT_IDS=<JIRA_ACCOUNT_ID>
+JIRA_ALLOWED_PROJECT_KEYS=PIM,RPA,TMS,VESPISTI
 ```
 
 For Jira project `RPA`, the selected Component is passed to the Context Resolver and remains subject to the deterministic Component → repository mapping in `ssot/jira-routing/RPA.yaml`.
@@ -91,7 +90,7 @@ This prevents workflow differences between PIM/RPA/TMS/VESPISTI from causing val
 - Production credentials are never included in Agent requests or persisted job payloads.
 - One Jira issue may create multiple PRs.
 - RPA repository routing remains deterministic through Jira Component governance.
-- Duplicate Jira webhook delivery is controlled by intake-event/job idempotency.
+- Duplicate polling observations are controlled by deterministic intake-event/job idempotency.
 
 ## Canonical states
 
@@ -127,7 +126,7 @@ The reference adapters expect these capabilities to be supplied at runtime:
 - Jira REST credentials/OAuth supplied from a secret store;
 - GitHub App/installation token supplied from a secret store;
 - controlled Agent Runner endpoint;
-- Jira and GitHub webhook secrets.
+- Jira REST and GitHub REST credentials.
 
 Secrets must not be committed to this repository, Jira comments, Effective Context, or AI job payloads.
 
@@ -135,11 +134,10 @@ Secrets must not be committed to this repository, Jira comments, Effective Conte
 
 ```text
 GET  /healthz
-POST /webhooks/jira
-POST /webhooks/github
+GET  /v1/jobs/{jobId}
+POST /v1/jobs/{jobId}/retry
+POST /v1/jobs/{jobId}/cancel
 ```
-
-GitHub webhook requests require `X-Hub-Signature-256` verification. Jira webhook requests require the configured AI SDLC shared-secret header and may use `X-Atlassian-Webhook-Identifier` as the idempotency event identifier.
 
 ## Local validation
 

@@ -6,6 +6,11 @@ export interface GitHubRestAdapterConfig {
   authorization: string;
 }
 
+export interface GitHubPullRequestStatus {
+  state: 'open' | 'closed';
+  merged: boolean;
+}
+
 export class GitHubRestAdapter implements GitHostPort {
   private readonly apiBaseUrl: string;
 
@@ -14,6 +19,16 @@ export class GitHubRestAdapter implements GitHostPort {
     private readonly fetchImpl: typeof fetch = fetch,
   ) {
     this.apiBaseUrl = config.apiBaseUrl?.replace(/\/$/, '') ?? 'https://api.github.com';
+  }
+
+  async getPullRequestStatus(repository: string, number: number): Promise<GitHubPullRequestStatus> {
+    const response = await this.fetchImpl(
+      `${this.apiBaseUrl}/repos/${repository}/pulls/${number}`,
+      { headers: this.headers() },
+    );
+    if (!response.ok) throw new Error(`GitHub pull request lookup failed with HTTP ${response.status}.`);
+    const data = await response.json() as { state: 'open' | 'closed'; merged_at?: string | null };
+    return { state: data.state, merged: Boolean(data.merged_at) };
   }
 
   async getDefaultBranch(repository: string): Promise<string> {

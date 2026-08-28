@@ -38,6 +38,14 @@ export class PostgresJobStore implements JobStorePort {
     return result.rows[0]?.payload ?? null;
   }
 
+  async findByState(state: AiSdlcJob['state']): Promise<AiSdlcJob[]> {
+    const result = await this.pool.query<{ payload: AiSdlcJob }>(
+      'SELECT payload FROM ai_sdlc_jobs WHERE state = $1 ORDER BY updated_at ASC',
+      [state],
+    );
+    return result.rows.map((row) => row.payload);
+  }
+
   async save(job: AiSdlcJob): Promise<void> {
     await this.pool.query(
       `INSERT INTO ai_sdlc_jobs (

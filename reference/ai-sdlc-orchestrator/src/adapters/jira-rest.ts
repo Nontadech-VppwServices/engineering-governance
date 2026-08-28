@@ -9,20 +9,48 @@ export interface JiraRestAdapterConfig {
   strictTransitions?: boolean;
 }
 
+export interface JiraPollingIssue {
+  key: string;
+  id?: string;
+  fields: {
+    summary: string;
+    updated?: string;
+    issuetype?: { name?: string };
+    assignee?: { accountId?: string } | null;
+    project?: { key?: string };
+    [field: string]: unknown;
+  };
+}
+
 export class JiraRestAdapter implements JiraSyncPort {
   constructor(
     private readonly config: JiraRestAdapterConfig,
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}
 
+  async searchIssues(jql: string, fields: string[]): Promise<JiraPollingIssue[]> {
+    const response = await this.fetchImpl(
+      `${this.config.baseUrl.replace(/\/$/, '')}/rest/api/3/search/jql`,
+      {
+        method: 'POST',
+        headers: this.headers(),
+        body: JSON.stringify({ jql, fields, maxResults: 100 }),
+      },
+    );
+    if (!response.ok) throw new Error(`Jira search failed with HTTP ${response.status}.`);
+    const data = await response.json() as { issues?: JiraPollingIssue[] };
+    return data.issues ?? [];
+  }
+
   async getIssue(issueKey: string) {
-    const url = `${this.config.baseUrl.replace(/\/$/, '')}/rest/api/3/issue/${encodeURIComponent(issueKey)}?fields=summary,status,issuetype,project`;
+    const url = `${this.config.baseUrl.replace(/\/$/, '')}/rest/api/3/issue/${encodeURIComponent(issueKey)}?fields=summary,description,status,issuetype,project`;
     const response = await this.fetchImpl(url, { headers: this.headers() });
     if (!response.ok) throw new Error(`Jira get issue failed with HTTP ${response.status}.`);
     const data = await response.json() as {
       key: string;
       fields: {
         summary: string;
+        description?: unknown;
         status?: { name?: string };
         issuetype?: { name?: string };
         project?: { key?: string };
@@ -31,6 +59,7 @@ export class JiraRestAdapter implements JiraSyncPort {
     return {
       issueKey: data.key,
       summary: data.fields.summary,
+      description: textFromJiraDocument(data.fields.description),
       status: data.fields.status?.name ?? null,
       issueType: data.fields.issuetype?.name ?? null,
       projectKey: data.fields.project?.key ?? null,
@@ -126,4 +155,12 @@ export class JiraRestAdapter implements JiraSyncPort {
       'content-type': 'application/json',
     };
   }
+}
+
+function textFromJiraDocument(value: unknown): string | null {
+  if (typeof value === 'string') return value;
+  if (!value || typeof value !== 'object') return null;
+  const document = value as { content?: unknown[]; text?: unknown };
+  if (typeof document.text === 'string') return document.text;
+  return (document.content ?? []).map((item) => textFromJiraDocument(item)).filter(Boolean).join(' ').trim() || null;
 }

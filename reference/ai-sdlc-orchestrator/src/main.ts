@@ -14,6 +14,7 @@ import { CompositeJobEventPublisher, ReportingEventAdapter } from './adapters/re
 import { createPhase4HttpServer } from './http.js';
 import { JiraIntakeService } from './intake.js';
 import { AiSdlcOrchestrator } from './orchestrator.js';
+import { PollingWorker } from './polling.js';
 
 const pool = new pg.Pool({ connectionString: required('DATABASE_URL') });
 const sqlPath = resolve(dirname(fileURLToPath(import.meta.url)), '../sql/001_ai_sdlc_jobs.sql');
@@ -21,9 +22,10 @@ await pool.query(await readFile(sqlPath, 'utf8'));
 const redis = new URL(required('REDIS_URL'));
 const connection = { host: redis.hostname, port: Number(redis.port || '6379'), password: redis.password || undefined };
 const queue = new BullMqIntakeQueue(connection);
+const jobs = new PostgresJobStore(pool);
 const jiraAuthorization = `Basic ${Buffer.from(`${required('JIRA_EMAIL')}:${required('JIRA_API_TOKEN')}`).toString('base64')}`;
 const orchestrator = new AiSdlcOrchestrator({
-  jobs: new PostgresJobStore(pool),
+  jobs,
   context: new ContextResolverHttpAdapter(required('CONTEXT_RESOLVER_URL'), `Bearer ${required('CONTEXT_RESOLVER_API_TOKEN')}`),
   agent: new AgentHttpAdapter(required('AGENT_RUNNER_URL'), `Bearer ${required('AGENT_RUNNER_API_TOKEN')}`),
   git: new GitHubRestAdapter({ authorization: `Bearer ${required('GITHUB_TOKEN')}`, apiBaseUrl: process.env.GITHUB_API_URL }),
@@ -37,19 +39,26 @@ const worker = new BullMqWorkerRuntime(connection, orchestrator);
 const intake = new JiraIntakeService(queue);
 const port = Number(process.env.PHASE4_PORT ?? '8084');
 const server = createPhase4HttpServer({
-  jiraSharedSecret: required('JIRA_WEBHOOK_SECRET'),
-  githubWebhookSecret: required('GITHUB_WEBHOOK_SECRET'),
   apiToken: required('PHASE4_API_TOKEN'),
-  jiraWebhook: {
-    targetAssigneeAccountIds: csv(required('JIRA_AI_ASSIGNEE_ACCOUNT_IDS')),
-    allowedProjectKeys: csv(required('JIRA_ALLOWED_PROJECT_KEYS')),
+}, intake, orchestrator);
+server.listen(port, '0.0.0.0', () => console.log(JSON.stringify({ service: 'ai-sdlc-orchestrator', port })));
+const polling = new PollingWorker(
+  {
+    intervalMs: Number(process.env.JIRA_POLL_INTERVAL_MS ?? '900000'),
+    jiraProjects: csv(required('JIRA_ALLOWED_PROJECT_KEYS')),
+    jiraAssignees: csv(required('JIRA_AI_ASSIGNEE_ACCOUNT_IDS')),
     componentFieldId: process.env.JIRA_COMPONENT_FIELD_ID,
     workTypeFieldId: process.env.JIRA_WORK_TYPE_FIELD_ID,
   },
-}, intake, orchestrator);
-server.listen(port, '0.0.0.0', () => console.log(JSON.stringify({ service: 'ai-sdlc-orchestrator', port })));
+  new JiraRestAdapter({ baseUrl: required('JIRA_BASE_URL'), authorization: jiraAuthorization, statusNamesByProject: jsonEnv('JIRA_STATUS_MAPPINGS_JSON', {}) }),
+  new GitHubRestAdapter({ authorization: `Bearer ${required('GITHUB_TOKEN')}`, apiBaseUrl: process.env.GITHUB_API_URL }),
+  jobs,
+  queue,
+  orchestrator,
+);
+polling.start();
 
-async function shutdown(): Promise<void> { server.close(); await worker.close(); await queue.close(); await pool.end(); }
+async function shutdown(): Promise<void> { polling.stop(); server.close(); await worker.close(); await queue.close(); await pool.end(); }
 process.on('SIGTERM', () => void shutdown());
 process.on('SIGINT', () => void shutdown());
 function required(name: string): string { const value = process.env[name]; if (!value) throw new Error(`${name} is required.`); return value; }

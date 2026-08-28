@@ -110,6 +110,7 @@ export interface AgentExecutionRequest {
   repository: string;
   base_branch: string;
   working_branch: string;
+  requirement?: string;
   effective_context: EffectiveContextView;
   constraints: {
     allow_merge: false;

@@ -16,7 +16,7 @@ services:
     environment: { PUBLIC_DOMAIN: "${PUBLIC_DOMAIN:?PUBLIC_DOMAIN is required}", ACME_EMAIL: "${ACME_EMAIL:-}" }
     volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "caddy-data:/data", "caddy-config:/config"]
     networks: [edge, backend]
-    depends_on: { phase4-ai-sdlc: { condition: service_healthy }, hermes-chat: { condition: service_healthy } }
+    depends_on: { hermes-chat: { condition: service_healthy } }
     healthcheck: { test: ["CMD", "wget", "--no-check-certificate", "-qO-", "https://localhost/healthz"], interval: 10s, timeout: 3s, retries: 10 }
 
   postgres:
@@ -64,7 +64,7 @@ services:
       JIRA_BASE_URL: ${JIRA_BASE_URL:?required}
       JIRA_EMAIL: ${JIRA_EMAIL:?required}
       JIRA_API_TOKEN: ${JIRA_API_TOKEN:?required}
-      JIRA_WEBHOOK_SECRET: ${JIRA_WEBHOOK_SECRET:?required}
+      JIRA_POLL_INTERVAL_MS: ${JIRA_POLL_INTERVAL_MS:-900000}
       JIRA_AI_ASSIGNEE_ACCOUNT_IDS: ${JIRA_AI_ASSIGNEE_ACCOUNT_IDS:?required}
       JIRA_ALLOWED_PROJECT_KEYS: ${JIRA_ALLOWED_PROJECT_KEYS:?required}
       JIRA_COMPONENT_FIELD_ID: ${JIRA_COMPONENT_FIELD_ID:-}
@@ -72,7 +72,6 @@ services:
       JIRA_STATUS_MAPPINGS_JSON: ${JIRA_STATUS_MAPPINGS_JSON:-{}}
       GITHUB_API_URL: ${GITHUB_API_URL:-https://api.github.com}
       GITHUB_TOKEN: ${GITHUB_TOKEN:?required}
-      GITHUB_WEBHOOK_SECRET: ${GITHUB_WEBHOOK_SECRET:?required}
       PHASE6_API_URL: http://phase6-hermes-governance:8086
       PHASE6_API_TOKEN: ${PHASE6_API_TOKEN:?required}
       REPORTING_API_URL: http://rpa-reporting:8089
@@ -113,7 +112,6 @@ services:
       JIRA_API_TOKEN: ${JIRA_API_TOKEN:?required}
       JIRA_AI_PRIMARY_ASSIGNEE_ACCOUNT_ID: ${JIRA_AI_PRIMARY_ASSIGNEE_ACCOUNT_ID:?required}
       JIRA_WORK_TYPE_FIELD_ID: ${JIRA_WORK_TYPE_FIELD_ID:-}
-      JIRA_WEBHOOK_SECRET: ${JIRA_WEBHOOK_SECRET:?required}
       JIRA_AI_ASSIGNEE_ACCOUNT_IDS: ${JIRA_AI_ASSIGNEE_ACCOUNT_IDS:?required}
       JIRA_ALLOWED_PROJECT_KEYS: ${JIRA_ALLOWED_PROJECT_KEYS:?required}
       JIRA_MODULE_NAME_FIELD_ID: ${JIRA_MODULE_NAME_FIELD_ID:-}
@@ -140,7 +138,7 @@ services:
   agent-runner:
     <<: *service-defaults
     build: { context: ./reference/agent-runner }
-    environment: { AGENT_RUNNER_PORT: 8088, AGENT_RUNNER_API_TOKEN: "${AGENT_RUNNER_API_TOKEN:?required}", AGENT_WORKSPACE_ROOT: /workspaces, AGENT_MODE: "${AGENT_MODE:-hermes}", GITHUB_TOKEN: "${GITHUB_TOKEN:?required}", HERMES_CODER_URL: "http://hermes-coder:8642", HERMES_CODER_API_KEY: "${HERMES_CODER_API_KEY:?required}" }
+    environment: { AGENT_RUNNER_PORT: 8088, AGENT_RUNNER_API_TOKEN: "${AGENT_RUNNER_API_TOKEN:?required}", AGENT_WORKSPACE_ROOT: /workspaces, AGENT_MODE: "${AGENT_MODE:-hermes}", GITHUB_TOKEN: "${GITHUB_TOKEN:?required}", HERMES_CODER_URL: "http://hermes-coder:8642", HERMES_CODER_API_KEY: "${HERMES_CODER_API_KEY:?required}", HERMES_CODER_MODEL: "${HERMES_CODER_MODEL:-qwen3-coder:30b}", HERMES_UID: "${HERMES_UID:-10000}", HERMES_GID: "${HERMES_GID:-10000}" }
     volumes: ["agent-workspaces:/workspaces"]
     depends_on: { hermes-coder: { condition: service_healthy } }
     healthcheck: { test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8088/healthz"], interval: 10s, timeout: 3s, retries: 15 }
@@ -175,6 +173,8 @@ services:
       API_SERVER_ENABLED: "true"
       API_SERVER_HOST: 0.0.0.0
       API_SERVER_KEY: ${HERMES_CHAT_API_KEY:?required}
+      HERMES_UID: ${HERMES_UID:-10000}
+      HERMES_GID: ${HERMES_GID:-10000}
       LINE_CHANNEL_ACCESS_TOKEN: ${LINE_CHANNEL_ACCESS_TOKEN:?required}
       LINE_CHANNEL_SECRET: ${LINE_CHANNEL_SECRET:?required}
       LINE_PORT: 8646
@@ -197,8 +197,8 @@ services:
     <<: *service-defaults
     image: ${HERMES_IMAGE:-nousresearch/hermes-agent@sha256:071a7e5e6787156d1469ad04088cdbc0ce3db25d2727cb5a4e3958e3c57aa8f7}
     command: gateway run
-    environment: { API_SERVER_ENABLED: "true", API_SERVER_HOST: "0.0.0.0", API_SERVER_KEY: "${HERMES_CODER_API_KEY:?required}", OPENAI_API_KEY: "${OPENAI_API_KEY:-}", OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}", ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}" }
-    volumes: ["hermes-coder-data:/opt/data", "./hermes/skills/engineering-governance:/opt/data/skills/engineering-governance:ro", "generated-skills:/opt/data/skills/generated:ro", "agent-workspaces:/workspaces"]
+    environment: { API_SERVER_ENABLED: "true", API_SERVER_HOST: "0.0.0.0", API_SERVER_KEY: "${HERMES_CODER_API_KEY:?required}", HERMES_UID: "${HERMES_UID:-10000}", HERMES_GID: "${HERMES_GID:-10000}", HERMES_WRITE_SAFE_ROOT: "/opt/data:/workspaces" }
+    volumes: ["hermes-coder-data:/opt/data", "./hermes/skills/engineering-governance:/opt/data/skills/engineering-governance:ro", "generated-skills:/opt/data/skills/generated:ro", "agent-workspaces:/workspaces", "../../../product-information:/workspaces/product-information"]
     depends_on: { hermes-data-init: { condition: service_completed_successfully } }
     healthcheck: { test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8642/health"], interval: 15s, timeout: 5s, retries: 12 }
 
@@ -210,7 +210,8 @@ services:
       resources:
         limits: { cpus: "0.25", memory: 128M }
     user: root
-    command: ["/bin/sh", "-ec", "mkdir -p /chat/skills /coder/skills && cp /seed/chat.yaml /chat/config.yaml && cp /seed/coder.yaml /coder/config.yaml && chown -R 10000:10000 /chat /coder"]
+    command: ["/bin/sh", "-ec", "mkdir -p /chat/skills /coder/skills && cp /seed/chat.yaml /chat/config.yaml && cp /seed/coder.yaml /coder/config.yaml && chown -R ${HERMES_UID:-10000}:${HERMES_GID:-10000} /chat /coder"]
+    environment: { HERMES_UID: "${HERMES_UID:-10000}", HERMES_GID: "${HERMES_GID:-10000}" }
     volumes: ["hermes-chat-data:/chat", "hermes-coder-data:/coder", "./hermes/config-chat.yaml:/seed/chat.yaml:ro", "./hermes/config-coder.yaml:/seed/coder.yaml:ro"]
     networks: [backend]
 
