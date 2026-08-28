@@ -4,13 +4,13 @@
 
 Controls Jira → governed AI execution → Git branch/test → pull request → Jira synchronization.
 
-ADR-GLOBAL-010 consolidates the execution boundary: Hermes drives the AI SDLC lifecycle through the `ai-sdlc-execution` skill, and `governance-mcp` holds the deterministic authority. There is no separate orchestrator service.
+ADR-GLOBAL-010, as amended by the direct Hermes MCP decision, makes Hermes the AI SDLC execution entry point. Hermes drives the lifecycle through the `ai-sdlc-execution` skill and calls provider-facing Hermes MCP connectors. There is no separate orchestrator service.
 
 ## Intake
 
 An intake event must have a stable event ID and Jira issue key. Duplicate events must be deduplicated before starting another execution for the same logical event.
 
-Recurring Jira intake enters through the approved Hermes scheduled task under `policies/hermes-scheduling-governance.md`. The `list_ready_jira_issues` tool retains the Jira filtering and project/assignee allowlist server-side; `create_job` is idempotent on the intake event ID. There is no polling loop and no queue.
+Recurring Jira intake enters through the approved Hermes scheduled task under `policies/hermes-scheduling-governance.md`. The direct Jira/Atlassian MCP connector retains Jira filtering and project/assignee allowlists server-side; `create_job` is idempotent on the intake event ID. There is no polling loop and no queue.
 
 The orchestrator must load live Jira issue context and Effective Context before invoking material AI execution.
 

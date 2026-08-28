@@ -13,14 +13,17 @@ related_adr:
   - ADR-GLOBAL-008
 amended_by:
   - ADR-GLOBAL-010
+        - ADR-GLOBAL-011
 ---
 
-> **Amended by ADR-GLOBAL-010.** The tool boundary, the approved tool classes
+> **Amended by ADR-GLOBAL-010 and ADR-GLOBAL-011.** The approved tool classes
 > and the forbidden-tool list below are unchanged and remain absolute. The
-> "job-scoped server rule" changed: scope binding is now a per-call HMAC-signed
-> job token rather than a per-job server instance, because the boundary runs as
+> The "job-scoped server rule" changed: scope binding is now a per-call HMAC-signed
+> job token rather than a per-job server instance, because the compatibility boundary runs as
 > one long-lived shared server. ADR-GLOBAL-010 records that trade-off and its
-> mitigations.
+> mitigations. ADR-GLOBAL-011 makes direct provider-facing Hermes MCP the
+> primary path; `governance-mcp` remains a compatibility implementation during
+> migration.
 
 # Context
 

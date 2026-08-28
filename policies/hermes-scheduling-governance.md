@@ -8,7 +8,7 @@ Defines the Hermes-first control model for recurring and delayed engineering or 
 
 Every scheduled capability must first be evaluated as an approved Hermes skill with governed deterministic tools. Hermes is the execution entry point when it can safely and reliably perform the work. A scheduler or deterministic adapter may retain durable timing, queue, retry, idempotency, and delivery state; it must not replace Hermes reasoning or policy evaluation.
 
-Direct scheduled execution is permitted only through a documented Hermes-first exception. The exception records why Hermes cannot perform the work, its owner, bounded scope, review date, and the preserved trust boundary.
+Hermes cron is the execution entry point for scheduled work, and scheduled runs use approved Hermes MCP connectors for provider access. A separate direct scheduler is permitted only through a documented exception recording its rationale, owner, bounded scope, review date, and preserved trust boundary.
 
 ## Lifecycle
 
@@ -25,7 +25,7 @@ Direct scheduled execution is permitted only through a documented Hermes-first e
 - Mutating jobs require approval when created or changed; a new skill version, wider scope, target change, or schedule change requires a new approval.
 - Hermes must use deterministic tools for persistence, queueing, retries, idempotency, and external delivery.
 - Hermes output is untrusted for authorization. It cannot approve a schedule, alter its scope, or replace Effective Context.
-- Provider and production credentials remain outside Hermes. Trusted adapters expose only the minimum job-scoped capability.
+- Unrestricted provider and production credentials remain outside the Hermes agent process. Hermes MCP connectors expose only the minimum job-scoped capability through isolated runtime secret handling.
 - Every run records sanitized inputs, tool evidence, result, failure reason, and audit/correlation references.
 
 ## Reliability and failure handling
@@ -38,7 +38,7 @@ Schedules are Hermes cron jobs. They are seeded from `hermes/cron/jobs.json` whe
 
 Jira intake and the daily, weekly and monthly RPA reports run under this model. Each job's prompt is self-contained because a scheduled run starts in a fresh session with no memory of previous runs.
 
-External delivery is never performed by the schedule itself. A job calls `send_line_message`, which enqueues on the deterministic outbox with an idempotency key; a re-fired or retried run cannot deliver a duplicate.
+External delivery is never performed by the schedule itself. A job calls the approved Hermes MCP `send_line_message` capability, which uses a provider-side transactional outbox with an idempotency key; a re-fired or retried run cannot deliver a duplicate.
 
 Approval records live in `operations/schedules/`, one per schedule, drafted from `templates/hermes-scheduled-task.md`. A mutating schedule must not be enabled until its record carries a named approver.
 

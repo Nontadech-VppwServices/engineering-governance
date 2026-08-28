@@ -10,7 +10,7 @@ MCP is an interface layer only. It is never authoritative for Jira work state, G
 
 ## Scope binding
 
-Every scoped call carries a per-call HMAC-signed **job token** minted by `governance-mcp` in `prepare_workspace` and derived from Effective Context. It encodes the job, Jira issue, execution phase, allowed repositories, approved branches and permission decisions.
+Every scoped call carries a per-call HMAC-signed **job token** minted by the trusted execution boundary in `prepare_workspace` and derived from Effective Context. It encodes the job, Jira issue, execution phase, allowed repositories, approved branches and permission decisions. Direct provider MCP servers must verify this token, or an equivalent signed scope contract, before acting.
 
 The model must not choose or override the execution scope. It carries the token; it cannot mint one or widen the one it holds, because editing the payload invalidates the signature. `validateScope` re-runs on every verification and hard-fails if `can_merge`, `can_deploy_production` or `can_access_production_credentials` is anything but `false`.
 
@@ -18,9 +18,9 @@ The model must not choose or override the execution scope. It carries the token;
 
 ## Tool surface
 
-The authoritative allowlist is `ssot/mcp/ai-sdlc-tools.yaml`. It is enforced in three places that must agree — the SSOT file, the `tools.include` list in `hermes/config.yaml`, and the tools registered in `reference/governance-mcp/src/server.ts` — and CI fails on any drift between them.
+The authoritative allowlist is `ssot/mcp/ai-sdlc-tools.yaml`. It is enforced in the SSOT file, each Hermes MCP server's tool filter, and the tools registered by the provider connector. The legacy `governance-mcp` registration remains a compatibility implementation until direct provider connectors replace it. CI fails on any drift between an active implementation and the SSOT.
 
-Read tools must enforce the scoped Jira issue and repository allowlist. Controlled action tools are requests to the deterministic boundary; they do not grant Hermes direct provider credentials.
+Read tools must enforce the scoped Jira issue and repository allowlist. Controlled action tools are requests to the provider-facing MCP boundary; they do not grant the model unrestricted provider credentials or authority.
 
 Adding a tool is a governance change, not an implementation detail. It requires review before it appears in the allowlist.
 
@@ -71,11 +71,11 @@ Read tools and controlled action tools may be available according to Effective C
 
 ## Credentials
 
-Hermes must not receive Jira/GitHub provider credentials or production secrets. `governance-mcp` owns the minimum provider credentials required for approved tools.
+Hermes must not receive unrestricted Jira/GitHub/LINE provider credentials or production secrets. Each approved provider MCP connector owns or receives only the minimum credential required for its tools, isolated from the model process and workspace. `governance-mcp` may retain those credentials only while serving as the compatibility boundary.
 
 The Git credential must not reach the workspace either: it is supplied at call time through `GIT_ASKPASS` and must never be written into a remote URL, `.git/config`, or any other file Hermes can read.
 
-A transport/service credential used only to authenticate Hermes to the MCP boundary must be scoped, rotatable and must not grant direct Jira/GitHub/production access.
+A transport/service credential used only to authenticate Hermes to an MCP boundary must be scoped, rotatable and must not grant unrestricted Jira/GitHub/LINE/production access.
 
 ## Tool filtering
 

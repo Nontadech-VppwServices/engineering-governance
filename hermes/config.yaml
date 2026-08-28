@@ -24,18 +24,17 @@ display:
     line:
       tool_progress: off
 
-# The single governed tool boundary. Hermes holds no Jira/GitHub/LINE-push
-# credential of its own; GOVERNANCE_MCP_TOKEN only authenticates it to this
-# server. The include list is the production allowlist and must stay in sync
-# with ssot/mcp/ai-sdlc-tools.yaml — a new tool needs governance review before
-# it appears here.
+# The primary provider-facing MCP boundary. Hermes holds no unrestricted
+# Jira/GitHub/LINE credential of its own. HERMES_PROVIDER_MCP_TOKEN only
+# authenticates it to the configured MCP server. The default URL preserves the
+# governance-mcp compatibility path until direct provider connectors are live.
 mcp_servers:
-  governance:
+  provider_mcp:
     enabled: true
-    url: "http://governance-mcp:8090"
+    url: "${HERMES_PROVIDER_MCP_URL:-http://governance-mcp:8090}"
     transport: streamable-http
     headers:
-      authorization: "Bearer ${GOVERNANCE_MCP_TOKEN}"
+      authorization: "Bearer ${HERMES_PROVIDER_MCP_TOKEN:-${GOVERNANCE_MCP_TOKEN}}"
     timeout: 900
     connect_timeout: 30
     tools:

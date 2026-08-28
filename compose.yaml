@@ -32,7 +32,8 @@ services:
     volumes: ["postgres-data:/var/lib/postgresql/data"]
     healthcheck: { test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"], interval: 5s, timeout: 3s, retries: 20 }
 
-  # The only service holding Jira, GitHub and LINE-push credentials.
+  # Compatibility provider boundary. Direct provider MCP connectors may replace
+  # this service after migration and must own their own scoped credentials.
   governance-mcp:
     <<: *service-defaults
     build: { context: ./reference/governance-mcp }
@@ -69,8 +70,9 @@ services:
     depends_on: { postgres: { condition: service_healthy } }
     healthcheck: { test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8090/healthz"], interval: 10s, timeout: 3s, retries: 15 }
 
-  # The execution plane. Deliberately holds no provider credential: the only
-  # outbound secret is GOVERNANCE_MCP_TOKEN, which grants nothing on its own.
+  # The execution plane. Hermes connects through the provider-facing MCP
+  # endpoint; the default endpoint is the governance-mcp compatibility path.
+  # Provider credentials remain isolated inside the MCP connector boundary.
   hermes:
     <<: *service-defaults
     image: ${HERMES_IMAGE:-nousresearch/hermes-agent@sha256:071a7e5e6787156d1469ad04088cdbc0ce3db25d2727cb5a4e3958e3c57aa8f7}
@@ -83,6 +85,8 @@ services:
       HERMES_UID: ${HERMES_UID:-10000}
       HERMES_GID: ${HERMES_GID:-10000}
       HERMES_WRITE_SAFE_ROOT: /opt/data:/workspaces
+      HERMES_PROVIDER_MCP_URL: ${HERMES_PROVIDER_MCP_URL:-http://governance-mcp:8090}
+      HERMES_PROVIDER_MCP_TOKEN: ${HERMES_PROVIDER_MCP_TOKEN:-${GOVERNANCE_MCP_TOKEN}}
       GOVERNANCE_MCP_TOKEN: ${GOVERNANCE_MCP_TOKEN:?required}
       LINE_CHANNEL_ACCESS_TOKEN: ${LINE_CHANNEL_ACCESS_TOKEN:?required}
       LINE_CHANNEL_SECRET: ${LINE_CHANNEL_SECRET:?required}

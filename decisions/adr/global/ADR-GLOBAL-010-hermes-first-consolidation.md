@@ -11,6 +11,7 @@ supersedes_partially:
   - ADR-GLOBAL-008
 amends:
   - ADR-GLOBAL-009
+  - ADR-GLOBAL-011
 related_adr:
   - ADR-GLOBAL-004
   - ADR-GLOBAL-005
@@ -21,6 +22,10 @@ related_adr:
 ---
 
 # Context
+
+> **Amended by ADR-GLOBAL-011.** Direct provider-facing Hermes MCP is now the
+> primary integration path. The `governance-mcp` boundary described below is
+> retained as a compatibility implementation during migration.
 
 ADR-GLOBAL-008 established Hermes as the execution plane and ADR-GLOBAL-009 established MCP as the integration surface. The running system did not follow either decision.
 
@@ -96,7 +101,7 @@ Scope binding therefore moves from the *server instance* to a **per-call signed 
 
 Mitigations:
 
-- the token is minted only by `governance-mcp`, never by a caller;
+- the token is minted only by the trusted execution boundary, never by a caller;
 - the payload is signed, so editing the repository allowlist, phase or permissions invalidates it;
 - `validateScope` re-runs on every verification and hard-fails if `can_merge`, `can_deploy_production` or `can_access_production_credentials` is anything but `false`;
 - `JOB_TOKEN_SIGNING_SECRET` is separate from every other secret and independently rotatable;

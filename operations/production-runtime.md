@@ -48,7 +48,7 @@ requires `docker compose restart hermes`.
 - `GET https://PUBLIC_DOMAIN/healthz` returns 200.
 - Unsigned LINE webhook requests return 401.
 - Hermes logs contain `LINE: webhook listening` and `line connected`.
-- `docker compose exec hermes env | grep -E 'JIRA_|GITHUB_TOKEN'` returns nothing. Hermes must hold no provider credential.
+- `docker compose exec hermes env | grep -E 'JIRA_|GITHUB_TOKEN|LINE_CHANNEL_ACCESS_TOKEN'` returns nothing. The Hermes agent must hold no unrestricted provider credential; scoped credentials belong only to the provider MCP connector runtime.
 - `governance-mcp` `/healthz` reports `outbox: ready`; a stalled outbox worker returns 503.
 - A duplicate RPA `event_id` returns `duplicate=true` and creates no second record.
 - A LINE group action creates a draft but cannot confirm until the requester uses a 1:1 chat.

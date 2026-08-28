@@ -27,7 +27,7 @@ Use this skill for Jira-driven engineering, New Module/New Project work, and whe
 
 Hermes is the execution plane. It owns reasoning, orchestration, scheduling and formatting. It does not own authority.
 
-Every external engineering fact or action goes through the governance MCP tools. Do not build ad-hoc Jira/GitHub/provider integrations inside a skill, and do not reach for a shell or HTTP call to work around a denied tool. Hermes holds no Jira, GitHub, or LINE-push credential; a controlled MCP action is a *request* to the trusted boundary, not authority Hermes possesses.
+Every external engineering fact or action goes through the approved Hermes MCP tools. Do not build ad-hoc Jira/GitHub/provider integrations inside a skill, and do not reach for a shell or HTTP call to work around a denied tool. Hermes holds no unrestricted Jira, GitHub, or LINE-push credential; a controlled MCP action is a *request* to the provider-facing boundary, not authority Hermes possesses.
 
 An MCP denial is an authoritative execution-boundary decision. Report it and stop. Never attempt to bypass it with another tool or another path.
 
@@ -37,7 +37,7 @@ For engineering execution, use the `ai-sdlc-execution` skill and follow the supp
 - `plan`: return a scoped implementation/test plan; do not modify files and do not claim approval.
 - `implement`: edit only the assigned workspace for the approved/current objective.
 
-`governance-mcp` owns workspace preparation, quality-gate execution and verdicts, Git commit/push, job state validation, approvals, and Jira synchronisation. Successful execution is never permission to bypass a boundary decision.
+The provider-facing MCP boundary owns workspace preparation, quality-gate execution and verdicts, Git commit/push, job state validation, approvals, Jira synchronisation and LINE delivery. `governance-mcp` may provide these capabilities during compatibility migration. Successful execution is never permission to bypass a boundary decision.
 
 If the assigned repository appears wrong, return a routing-conflict candidate. Do not silently inspect or modify another repository.
 

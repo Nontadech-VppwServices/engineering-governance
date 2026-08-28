@@ -1,13 +1,15 @@
 schema_version: 2
 server:
-  id: governance
-  purpose: governed_capability_facade_for_hermes_execution
+  id: hermes-provider-mcp
+  purpose: direct_provider_capabilities_for_hermes_execution
   authority: false
   scope: job_scoped_signed_token
+  compatibility_server: governance
 
-# Scope binding is a per-call HMAC-signed job token minted by governance-mcp in
-# prepare_workspace. See ADR-GLOBAL-010. Hermes carries the token; it cannot
-# mint one or widen the one it holds.
+# Scope binding is a per-call HMAC-signed job token minted by the trusted
+# execution boundary in prepare_workspace. See ADR-GLOBAL-010. Hermes carries
+# the token; it cannot mint one or widen the one it holds. Direct provider MCP
+# connectors must verify it before every scoped action.
 
 read_tools:
   - name: get_effective_context
@@ -116,7 +118,8 @@ human_confirmed_action_types:
 credentials:
   hermes_receives_provider_credentials: false
   provider_credentials_owner:
-    - governance_mcp
+    - provider_mcp_connector
+    - governance_mcp_compatibility
   production_credentials_available: false
 
 audit:

@@ -6,23 +6,23 @@ Define the boundary between deterministic AI SDLC control and Hermes agent reaso
 
 ## Architecture rule
 
-Hermes is the execution plane for engineering and automation work. It owns reasoning, orchestration sequencing, scheduling and formatting. The `governance-mcp` boundary owns what must not depend on model behaviour: provider credentials, human approval, quality verdicts, Git authority, job-state validation and delivery guarantees.
+Hermes is the execution plane for engineering and automation work. It owns reasoning, orchestration sequencing, scheduling and formatting. Hermes MCP is the primary integration surface for Jira/Atlassian, Git and LINE capabilities. Provider-facing MCP servers own what must not depend on model behaviour: scoped provider credentials, human approval, quality verdicts, Git authority, job-state validation and delivery guarantees.
 
 ```text
 Hermes
-  ↓ native MCP client, no provider credential
-governance-mcp
+  ↓ native MCP client
+Hermes MCP provider connectors
   ↓ server-side job/repository/phase authorization
-Jira / GitHub / Context / approved quality gates / LINE outbox
+Jira / Atlassian / GitHub / Context / approved quality gates / LINE
 ```
 
-MCP is the integration surface, not a transfer of authority. A tool call is a request to the boundary; the boundary decides.
+MCP is the integration surface, not a transfer of unrestricted authority. A tool call is a request to the provider-facing boundary; that boundary decides. Direct means Hermes connects to the approved MCP server for a provider, not that the model receives raw API credentials or bypasses server-side authorization.
 
 ## Hermes-first precedence
 
 For any engineering or automation capability, first determine whether an approved Hermes skill and its governed tools can perform the work safely and reliably. When they can, Hermes is the required execution entry point. Do not add a service for work that is sequencing, formatting, templating or scheduling.
 
-A capability stays deterministic only when an incorrect result would be unrecoverable, unauditable, or a security failure. That test is what keeps credential custody, approval, quality verdicts, Git writes, idempotency and delivery in `governance-mcp`.
+A capability stays deterministic only when an incorrect result would be unrecoverable, unauditable, or a security failure. That test is what keeps credential custody, approval, quality verdicts, Git writes, idempotency and delivery in the provider-facing MCP boundary.
 
 A direct non-Hermes execution path beyond that boundary requires a documented exception recording its rationale, owner, bounded scope, and review date. An exception never grants Hermes provider credentials.
 
