@@ -1,4 +1,5 @@
 export type WorkType = 'bug' | 'new_module' | 'new_project' | 'analysis';
+export type AgentExecutionPhase = 'analyze' | 'plan' | 'implement';
 
 export type JobState =
   | 'RECEIVED'
@@ -107,6 +108,8 @@ export interface AgentExecutionRequest {
   job_id: string;
   jira_issue_key: string;
   work_type: WorkType;
+  execution_phase?: AgentExecutionPhase;
+  objective?: string | null;
   repository: string;
   base_branch: string;
   working_branch: string;
@@ -123,6 +126,9 @@ export interface AgentExecutionResult {
   schema_version: 1;
   job_id: string;
   repository: string;
+  execution_phase?: AgentExecutionPhase;
+  hermes_run_id?: string | null;
+  artifact_content?: string | null;
   status: 'completed' | 'blocked' | 'failed' | 'analysis_only';
   summary?: string | null;
   commit_sha?: string | null;

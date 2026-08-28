@@ -145,7 +145,7 @@ Effective Context is a computed view, never a replacement for Jira/GitHub/ADR/BD
 
 ### Phase 4 — Jira → AI → Git → PR — Runtime Complete
 
-Phase 4 now has an executable runtime, Docker image, PostgreSQL migrations, Redis/BullMQ worker, authenticated APIs, Phase 5 handoff and isolated Agent Runner. Connecting real Jira/GitHub credentials remains an operator activation step.
+Phase 4 has an executable runtime, Docker image, PostgreSQL migrations, Redis/BullMQ worker, authenticated APIs, Phase 5 handoff and isolated Agent Runner. Connecting real Jira/GitHub credentials remains an operator activation step.
 
 Governance/contracts:
 
@@ -167,11 +167,8 @@ Reference TypeScript orchestrator:
 - Jira REST comment/status synchronization
 - project-aware Jira destination-status mapping without hard-coded transition IDs
 - GitHub REST branch/PR adapter
-- Agent Runner HTTP contract
 - multi-repository PR creation
-- Bug → code/test/PR workflow
 - New Module → Phase 5 approval → signed/idempotent Phase 4 handoff
-- Analysis-only workflow without code/PR
 - AWS API + E2E quality-gate enforcement from Effective Context
 - GitHub `pull_request` webhook completion tracking
 - `DONE` only after all required PRs are merged
@@ -188,12 +185,95 @@ CI validation:
 
 - `.github/workflows/phase4-orchestrator-validation.yml`
 - Phase 4 JSON schema validation
-- TypeScript typecheck
-- orchestration, routing, quality-gate, Jira webhook and Jira REST tests
+- TypeScript typecheck/tests/build
 
 Runtime activation checklist:
 
 - `operations/phase4-runtime-activation.md`
+
+### Phase 4.1 — Hermes Execution Plane Alignment — Complete
+
+Accepted architecture:
+
+- `decisions/adr/global/ADR-GLOBAL-008-hermes-execution-plane.md`
+- `policies/hermes-execution-plane.md`
+- `hermes/skills/ai-sdlc-execution/SKILL.md`
+
+The runtime explicitly separates deterministic control from model reasoning:
+
+```text
+AI SDLC Control Plane
+  ├── Jira intake / idempotency
+  ├── durable job state / queue
+  ├── Effective Context / routing
+  ├── approval / authorization
+  └── PR / deployment boundaries
+             ↓
+Trusted Agent Runner
+             ↓
+Hermes Execution Plane
+  ├── ANALYZE   read-only
+  ├── PLAN      read-only
+  └── IMPLEMENT controlled file edits
+             ↓
+Trusted Agent Runner
+  ├── independent changed-file verification
+  ├── independent quality gates
+  └── Git commit/push
+             ↓
+Pull Request
+```
+
+Hermes is the default **AI reasoning/execution plane**, but never the authoritative control plane or source of truth.
+
+### Phase 4.2 — AI SDLC MCP Tool Boundary — Complete
+
+Accepted architecture and policy:
+
+- `decisions/adr/global/ADR-GLOBAL-009-ai-sdlc-mcp-tool-boundary.md`
+- `policies/ai-sdlc-mcp.md`
+- `policies/hermes-execution-plane.md`
+- `ssot/mcp/ai-sdlc-tools.yaml`
+- `schemas/ai-sdlc-mcp-scope.schema.json`
+
+Reference implementation:
+
+- `reference/ai-sdlc-mcp/`
+- MCP TypeScript SDK v2 server factory
+- immutable job-scoped execution scope
+- Effective Context/Jira read tools
+- scoped repository search/read tools
+- named quality-gate tool with no arbitrary shell command
+- controlled branch/commit/push/PR requests backed by trusted ports
+- trusted quality verdict required before commit/push/PR
+- scoped sanitized Jira comment tool
+- repository/path/phase/branch guards
+- hard no-merge/no-production/no-production-secret authority
+- regression tests and `.github/workflows/ai-sdlc-mcp-validation.yml`
+
+The standard Hermes integration path is now:
+
+```text
+Jira / GitHub
+     ↓
+AI SDLC Control Plane
+     ↓ immutable scope / approvals
+Trusted Agent Runner
+     ↓
+Hermes Execution Plane
+     ↓ native MCP client
+AI SDLC MCP Tool Boundary
+     ↓ server-side authorization
+Context / Jira / repository / quality gates / controlled Git requests
+     ↓
+Pull Request
+     ↓
+Human + GitHub Actions
+     ↓
+DEV / UAT / PROD
+```
+
+MCP is a capability facade that reduces provider/tool integration complexity. It does not replace the Control Plane, JobStore, Effective Context, Trusted Agent Runner or human production boundary.
 
 ### Phase 5 — Module / New Project Automation — Complete
 
@@ -245,15 +325,15 @@ Docker/runtime:
 - `.env.example` plus a local ignored `.env`
 - `operations/phase5-6-docker-runtime.md`
 - PostgreSQL, Phase 5, and Phase 6 start with `docker compose up -d --build`
-- Hermes Chat and Hermes Coder run as separate containers; generated skills are mounted read-only and become visible without the previous one-shot copy
+- Hermes Chat and Hermes Coder run as separate containers; generated skills are mounted read-only
 
 ### LINE workflow control and reporting runtime
 
 - `reference/workflow-control/` provides allowlisted LINE identity/role resolution, short-lived signed principals, immutable action drafts and private confirmation
-- `reference/agent-runner/` provides isolated repository workspaces and independently verified git/test evidence
+- `reference/agent-runner/` provides isolated repository workspaces and independently verified Git/test evidence around Hermes execution
 - `reference/rpa-reporting/` provides idempotent RPA/workflow event ingestion, PostgreSQL aggregation, a notification outbox, scheduled reports, alert deduplication, retry and dead-letter handling
 - Caddy publishes only HTTPS webhook routes; internal APIs remain on the Compose backend network
-- The Hermes bundled LINE adapter handles signed inbound webhooks while the central Hermes LINE delivery adapter owns sanitized outbound push delivery
+- Hermes bundled LINE adapter handles signed inbound webhooks while the central Hermes LINE delivery adapter owns sanitized outbound push delivery
 
 ## Organization default project archetypes
 
@@ -285,41 +365,48 @@ RPA bots emit normalized run events to a central reporting service. The central 
 ## Planned evolution
 
 ```text
-Phase 0    Governance foundation                       COMPLETE
+Phase 0    Governance foundation                            COMPLETE
    ↓
-Phase 1    Registry + ADR/BDR standards               COMPLETE
+Phase 1    Registry + ADR/BDR standards                    COMPLETE
    ↓
-Phase 2    PIM pilot onboarding                       COMPLETE
+Phase 2    PIM pilot onboarding                            COMPLETE
    ↓
-Phase 2.1  Organization project inventory             COMPLETE
+Phase 2.1  Organization project inventory                  COMPLETE
    ↓
-Phase 2.2  Compliance + business-context onboarding   COMPLETE
+Phase 2.2  Compliance + business-context onboarding        COMPLETE
    ↓
-Phase 2.3  Jira repository routing                    COMPLETE
+Phase 2.3  Jira repository routing                         COMPLETE
    ↓
-Phase 3    Effective Context Resolver                  COMPLETE
+Phase 3    Effective Context Resolver                       COMPLETE
    ↓
-Phase 4    Jira → AI → Git → PR workflow              RUNTIME COMPLETE
+Phase 4    Jira → AI → Git → PR workflow                   RUNTIME COMPLETE
    ↓
-Phase 5    Module / New Project automation             COMPLETE
+Phase 4.1  Hermes Execution Plane alignment                COMPLETE
    ↓
-Phase 6    Hermes Skills / Memory / continuous improvement  COMPLETE
+Phase 4.2  AI SDLC MCP Tool Boundary                       COMPLETE
+   ↓
+Phase 5    Module / New Project automation                  COMPLETE
+   ↓
+Phase 6    Hermes Skills / Memory / continuous improvement COMPLETE
 ```
 
 Production runtime:
 
 ```text
-Docker Compose
-   ├── Context Resolver deployment
+Docker Compose / internal runtime
+   ├── Context Resolver
    ├── Redis / BullMQ
    ├── PostgreSQL JobStore
    ├── Jira webhook + AI assignee
    ├── GitHub App + webhook
-   ├── isolated Hermes Agent Runner
+   ├── AI SDLC Control Plane
+   ├── trusted Agent Runner
+   ├── Hermes Execution Plane (Analyze / Plan / Implement)
+   ├── AI SDLC MCP Tool Boundary
    ├── LINE Workflow Control
    ├── central RPA reporting
    ├── Caddy HTTPS ingress
-   └── health / retry / dead-letter controls
+   └── health / retry / dead-letter / audit controls
 ```
 
 Central reporting:
@@ -335,8 +422,8 @@ RPA Reporting Service
 
 ## Governance rule
 
-When documentation, AI memory, cached data, and authoritative systems disagree, follow `ssot/precedence.yaml` and report the conflict instead of silently guessing which value is correct.
+When documentation, Hermes output/memory, cached data, and authoritative systems disagree, follow `ssot/precedence.yaml` and report the conflict instead of silently guessing which value is correct.
 
 ## Next step
 
-Activate the Phase 4 runtime through `operations/phase4-runtime-activation.md` when infrastructure/credentials are ready, then configure the Hermes provider and messaging gateway through `operations/phase5-6-docker-runtime.md`. Production activation still requires real secret-manager values, infrastructure ownership, monitoring, and non-production smoke evidence.
+Validate and activate the integrated runtime using non-production Jira/GitHub credentials and smoke evidence. Hermes should be configured as the default execution provider with the governed AI SDLC MCP tool boundary, while production merge/deployment and authoritative workflow decisions remain behind the deterministic Control Plane and human/policy gates.

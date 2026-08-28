@@ -1,40 +1,42 @@
 # AI SDLC Orchestrator — Phase 4 Reference
 
-This package implements the controlled Jira → AI → Git → PR workflow defined by `ADR-GLOBAL-005`.
+This package implements the controlled Jira → AI → Git → PR workflow defined by `ADR-GLOBAL-005`, refined by `ADR-GLOBAL-008` so Hermes is the central AI reasoning/execution plane while deterministic services retain control authority.
 
 ## Runtime architecture
 
 ```text
 Jira REST polling / normalized intake event
   ↓
-Assignee + project filter
+Intake + idempotency
   ↓
-Intake validation + idempotency
+BullMQ / durable JobStore
   ↓
-QueuePort
-  ├─ InMemoryQueue (tests)
-  └─ BullMQQueue (production pattern)
+Effective Context Resolver
   ↓
-JobStore
-  ├─ InMemoryJobStore (tests)
-  └─ PostgresJobStore (production pattern)
+Governed repository route(s)
   ↓
-ContextResolverPort
+Trusted AgentRunnerPort
   ↓
-AgentRunnerPort
+Hermes Execution Plane
+  ├─ ANALYZE   read-only
+  ├─ PLAN      read-only
+  └─ IMPLEMENT controlled file edits
   ↓
-Quality-gate evaluation
-  ↓
-GitHostPort
+Trusted Agent Runner
+  ├─ changed-file enforcement
+  ├─ independent quality gates
+  └─ Git commit/push
   ↓
 Pull Request(s)
   ↓
-JiraSyncPort
+Human/policy review + merge
   ↓
 GitHub REST pull request polling
   ↓
 DONE after all required PRs are human/policy merged
 ```
+
+The Orchestrator is the deterministic **Control Plane**. Hermes is the **Execution Plane**. Hermes does not own job state, routing, approval, Git authority, quality-gate verdicts, PR merge or production deployment.
 
 ## Jira intake
 
@@ -57,29 +59,27 @@ JIRA_AI_ASSIGNEE_ACCOUNT_IDS=<JIRA_ACCOUNT_ID>
 JIRA_ALLOWED_PROJECT_KEYS=PIM,RPA,TMS,VESPISTI
 ```
 
-For Jira project `RPA`, the selected Component is passed to the Context Resolver and remains subject to the deterministic Component → repository mapping in `ssot/jira-routing/RPA.yaml`.
+### ANALYZE
 
-Application projects do not require users to select frontend/backend repositories. Repository resolution remains evidence-based and may return multiple repositories.
+The Orchestrator invokes the Agent Runner once per governed repository using `execution_phase=analyze`. The runner gives Hermes read-only repository access. Hermes findings are stored as non-authoritative analysis artifacts with its run ID. If files change, the runner blocks the result and the Orchestrator also performs a defensive changed-file check.
+
+### PLAN
+
+New Module planning uses `execution_phase=plan`. Hermes returns an implementation/test plan from repository evidence without modifying files. The plan is persisted as an AI artifact, then the job enters `WAITING_PLAN_APPROVAL`. Hermes output never counts as human approval.
+
+### IMPLEMENT
+
+After policy/approval permits modification, `execution_phase=implement` allows Hermes to edit only the assigned workspace. Hermes cannot commit or push. The trusted Agent Runner independently executes required tests, verifies the branch and performs Git commit/push only after the checks pass.
 
 ## Jira workflow synchronization
 
-The internal AI SDLC job state is authoritative for orchestration. Jira remains authoritative for Jira workflow state.
+The internal AI SDLC state is authoritative for orchestration; Jira remains authoritative for Jira workflow state. Do not hard-code Jira transition IDs. Runtime synchronization resolves project-specific destination status names and current available transitions, with comment-only fallback when a transition is not currently available.
 
-Do **not** hard-code Jira transition IDs. Runtime synchronization:
-
-1. reads the issue and Jira project key;
-2. chooses a project-specific destination status name;
-3. queries currently available transitions;
-4. selects a transition whose destination status matches the configured name;
-5. falls back to Jira comment-only synchronization when the transition is not currently available.
-
-Verified/partial project mappings are registered in:
+Verified/partial mappings live in:
 
 ```text
 ssot/jira-workflows/phase4-status-mapping.yaml
 ```
-
-This prevents workflow differences between PIM/RPA/TMS/VESPISTI from causing valid AI jobs to fail.
 
 ## Important boundaries
 
@@ -97,11 +97,11 @@ This prevents workflow differences between PIM/RPA/TMS/VESPISTI from causing val
 ```text
 RECEIVED
 → RESOLVING_CONTEXT
-→ ANALYZING
-→ PLANNING
-→ WAITING_PLAN_APPROVAL (New Module only)
-→ CODING
-→ TESTING
+→ ANALYZING       (Hermes)
+→ PLANNING        (Hermes, when required)
+→ WAITING_PLAN_APPROVAL
+→ CODING          (Hermes implementation)
+→ TESTING         (trusted runner evidence)
 → CREATING_PR
 → WAITING_REVIEW
 → DONE
@@ -111,14 +111,14 @@ Blocking paths may enter `WAITING_INFORMATION`, `FAILED`, or `CANCELLED`.
 
 ## Work-type behavior
 
-- **Bug**: resolve repository → analyze → code → test → PR → wait for review/merge.
-- **New Module**: resolve repository → plan → `WAITING_PLAN_APPROVAL` → code/test/PR only after human approval.
-- **Analysis**: analyze without code or PR.
-- **New Project** remains Phase 5 and is intentionally not implemented by this orchestrator.
+- **Bug**: Context → Hermes Analyze → Hermes Implement → trusted tests/Git → PR.
+- **New Module**: Context → Hermes Analyze → Hermes Plan → human approval → Hermes Implement → trusted tests/Git → PR.
+- **Analysis**: Context → Hermes Analyze → artifact → DONE, without branch/PR.
+- **New Project**: routed through Phase 5 project automation and its approval controls.
 
-## Production dependencies
+## Traceability
 
-The reference adapters expect these capabilities to be supplied at runtime:
+Agent results may include:
 
 - Redis for BullMQ;
 - PostgreSQL for durable job state/idempotency;
@@ -128,9 +128,9 @@ The reference adapters expect these capabilities to be supplied at runtime:
 - controlled Agent Runner endpoint;
 - Jira REST and GitHub REST credentials.
 
-Secrets must not be committed to this repository, Jira comments, Effective Context, or AI job payloads.
+This evidence is useful for audit/debugging but remains non-authoritative model output except for runner-observed Git/test facts.
 
-## HTTP endpoints
+## Runtime dependencies
 
 ```text
 GET  /healthz
@@ -142,9 +142,8 @@ POST /v1/jobs/{jobId}/cancel
 ## Local validation
 
 ```bash
-npm install
+npm ci
 npm run typecheck
 npm test
+npm run build
 ```
-
-CI validation is defined in `.github/workflows/phase4-orchestrator-validation.yml`.

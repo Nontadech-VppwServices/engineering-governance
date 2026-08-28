@@ -1,0 +1,67 @@
+schema_version: 1
+server:
+  id: ai-sdlc
+  purpose: governed_capability_facade_for_hermes_execution
+  authority: false
+  scope: job_scoped
+
+read_tools:
+  - name: get_effective_context
+    scope: current_job
+  - name: get_jira_issue
+    scope: current_issue
+  - name: search_repository
+    scope: allowed_repositories
+  - name: read_repository_file
+    scope: allowed_repositories
+
+controlled_action_tools:
+  - name: run_quality_gate
+    scope: allowed_repositories
+    arbitrary_command: false
+  - name: ensure_working_branch
+    scope: approved_working_branch
+    phase: implement
+  - name: commit_verified_changes
+    scope: approved_working_branch
+    phase: implement
+    requires_trusted_quality_verdict: true
+  - name: push_working_branch
+    scope: approved_working_branch
+    phase: implement
+  - name: create_pull_request
+    scope: approved_working_branch
+    phase: implement
+    requires_control_plane_permission: can_create_pr
+    requires_trusted_quality_verdict: true
+  - name: add_jira_comment
+    scope: current_issue
+    sanitized: true
+
+forbidden_tools:
+  - merge_pull_request
+  - deploy_production
+  - rollback_production
+  - get_production_secret
+  - arbitrary_shell_on_control_plane
+  - change_repository_routing
+  - accept_adr
+  - accept_bdr
+  - grant_human_approval
+
+credentials:
+  hermes_receives_provider_credentials: false
+  provider_credentials_owner:
+    - ai_sdlc_mcp_server
+    - trusted_agent_runner
+  production_credentials_available: false
+
+audit:
+  required: true
+  fields:
+    - job_id
+    - tool_name
+    - occurred_at
+    - scope
+    - decision
+    - evidence_ref

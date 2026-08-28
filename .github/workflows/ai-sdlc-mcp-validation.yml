@@ -1,0 +1,51 @@
+name: AI SDLC MCP Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'reference/ai-sdlc-mcp/**'
+      - 'schemas/ai-sdlc-mcp-scope.schema.json'
+      - 'ssot/mcp/**'
+      - 'policies/ai-sdlc-mcp.md'
+      - 'policies/hermes-execution-plane.md'
+      - 'decisions/adr/global/ADR-GLOBAL-009-ai-sdlc-mcp-tool-boundary.md'
+      - 'hermes/skills/ai-sdlc-execution/SKILL.md'
+      - '.github/workflows/ai-sdlc-mcp-validation.yml'
+  pull_request:
+    paths:
+      - 'reference/ai-sdlc-mcp/**'
+      - 'schemas/ai-sdlc-mcp-scope.schema.json'
+      - 'ssot/mcp/**'
+      - 'policies/ai-sdlc-mcp.md'
+      - 'policies/hermes-execution-plane.md'
+      - 'decisions/adr/global/ADR-GLOBAL-009-ai-sdlc-mcp-tool-boundary.md'
+      - 'hermes/skills/ai-sdlc-execution/SKILL.md'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate MCP execution scope schema
+        run: node -e "JSON.parse(require('fs').readFileSync('schemas/ai-sdlc-mcp-scope.schema.json','utf8'))"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install MCP reference dependencies
+        working-directory: reference/ai-sdlc-mcp
+        run: npm install --package-lock-only && npm ci
+
+      - name: Typecheck
+        working-directory: reference/ai-sdlc-mcp
+        run: npm run typecheck
+
+      - name: Tests
+        working-directory: reference/ai-sdlc-mcp
+        run: npm test
