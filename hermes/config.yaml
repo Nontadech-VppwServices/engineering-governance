@@ -1,0 +1,71 @@
+_config_version: 12
+
+model:
+  provider: custom
+  default: qwen3-coder:30b
+  base_url: http://host.docker.internal:11434/v1
+  context_length: 64000
+
+gateway:
+  platforms:
+    line:
+      enabled: true
+    api_server:
+      enabled: true
+      host: 0.0.0.0
+      max_concurrent_runs: 2
+
+display:
+  interim_assistant_messages: false
+  platforms:
+    line:
+      tool_progress: off
+
+# The single governed tool boundary. Hermes holds no Jira/GitHub/LINE-push
+# credential of its own; GOVERNANCE_MCP_TOKEN only authenticates it to this
+# server. The include list is the production allowlist and must stay in sync
+# with ssot/mcp/ai-sdlc-tools.yaml — a new tool needs governance review before
+# it appears here.
+mcp_servers:
+  governance:
+    enabled: true
+    url: "http://governance-mcp:8090"
+    transport: streamable-http
+    headers:
+      authorization: "Bearer ${GOVERNANCE_MCP_TOKEN}"
+    timeout: 900
+    connect_timeout: 30
+    tools:
+      resources: false
+      prompts: false
+      include:
+        - get_effective_context
+        - list_ready_jira_issues
+        - get_jira_issue
+        - add_jira_comment
+        - sync_jira_state
+        - create_job
+        - get_job
+        - record_job_state
+        - prepare_workspace
+        - search_repository
+        - read_repository_file
+        - run_quality_gate
+        - commit_and_push
+        - create_pull_request
+        - get_pull_request_status
+        - issue_principal
+        - draft_action
+        - confirm_action
+        - get_action
+        - create_plan
+        - get_plan
+        - record_observation
+        - propose_skill_change
+        - ingest_rpa_event
+        - query_rpa_metrics
+        - send_line_message
+
+cron:
+  preflight: true
+  wrap_response: false

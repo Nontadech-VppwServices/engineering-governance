@@ -2,7 +2,7 @@
   encode zstd gzip
   @line path /line/*
   handle @line {
-    reverse_proxy hermes-chat:8646
+    reverse_proxy hermes:8646
   }
   respond /healthz 200
   respond 404

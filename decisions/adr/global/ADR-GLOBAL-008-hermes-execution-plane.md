@@ -12,7 +12,15 @@ related_adr:
   - ADR-GLOBAL-005
   - ADR-GLOBAL-006
   - ADR-GLOBAL-007
+superseded_partially_by:
+  - ADR-GLOBAL-010
 ---
+
+> **Partially superseded by ADR-GLOBAL-010.** The two-plane separation below
+> still holds and is now actually implemented. The deterministic control plane
+> and the Trusted Agent Runner no longer exist as separate services: their
+> authoritative responsibilities moved into `governance-mcp`, and their
+> sequencing responsibilities moved into Hermes skills.
 
 # Context
 
@@ -97,9 +105,9 @@ The Agent Runner remains a security boundary around Hermes:
 
 ## Chat and execution profiles
 
-`hermes-chat` remains the human conversational interface and uses Workflow Control for state-changing requests.
+`hermes` is the consolidated human conversational interface and internal AI Execution Plane profile. It uses Workflow Control for state-changing chat requests and remains an internal execution surface for Agent Runner coding tasks.
 
-`hermes-coder` is the internal AI Execution Plane profile. It is not a public Git/Jira control surface and receives no production credentials.
+The consolidated Hermes service is not a public Git/Jira control surface and receives no production credentials.
 
 ## Skills and memory
 

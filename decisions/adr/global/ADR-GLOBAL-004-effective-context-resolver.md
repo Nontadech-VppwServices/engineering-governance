@@ -97,5 +97,5 @@ The resolver core is deterministic and model-independent. Provider-specific Jira
 - `policies/context-resolution.md`
 - `schemas/context-resolve-request.schema.json`
 - `schemas/effective-context.schema.json`
-- `api/context-resolver.openapi.yaml`
+- `schemas/effective-context.schema.json` (the Effective Context contract; the standalone HTTP API was removed by ADR-GLOBAL-010 and is now the `get_effective_context` tool)
 - `ADR-GLOBAL-003`
